@@ -1,13 +1,74 @@
 #include "APU.h"
 
+/* The total of samples is determined by the sample rate div frequency */
+#define SQUARE1_SAMPLE (int) (44100/squareList[0].out_freq)
+#define SQUARE2_SAMPLE (int) (44100/squareList[1].out_freq)
+/* APU Duty Cycle (used by square waves to wave width) */
+float duty_list[] = {0.125, 0.25, 0.50, 0.75};
+
 /* NES APU has two square wave channel */
 square_wave squareList[2];
 /* NES APU flags */
 apu_status  apu;
+/* Sample count used by the Square waves */
+int square1_sample_cnt = 0;
+int square2_sample_cnt = 0;
 
+
+void fill_audio(void *data, Uint8 *stream, int len) {
+	short *buff;
+	int i;
+
+	buff = (short*)stream;
+
+	len /=2; /* short  */
+	for (i = 0; i < len; i+= 2) {
+		buff[i]   = square_mix();
+		buff[i+1] = buff[i]; 
+	}
+}
+
+
+
+void open_audio() {
+	SDL_AudioSpec as;
+	SDL_Init(SDL_INIT_AUDIO);
+	as.freq     = 44100;
+	as.format   = AUDIO_S16SYS;
+	as.channels = 2;
+	as.samples  = 4096;
+	as.callback = fill_audio;
+
+	SDL_OpenAudio(&as, NULL);
+	SDL_PauseAudio(0);
+}
+
+void close_audio() {
+	SDL_CloseAudio();
+	SDL_Quit();
+}
+
+
+
+/* Square Wave Channel 1 */
+short square1_sample() {
+	if (squareList[0].out_freq > 0) {
+		square1_sample_cnt++;
+
+		if (square1_sample_cnt >= SQUARE1_SAMPLE)
+			square1_sample_cnt = 0;
+
+		if (square1_sample_cnt < (SQUARE1_SAMPLE * squareList[0].duty))
+			return (100 * squareList[0].env.volume);
+	
+		return -(100 * squareList[0].env.volume);
+	}
+	return 0;
+}
 
 /* Control the wave amplitude */
 void square1_envelope() {
+
 	/* verify if declay flag is not set, if it's not, should decay the volume */
 	if (!(squareList[0].env.c_flag)) {
 		/* The envelope starts with volume 15, and decrements every time the unit is clocked */
@@ -29,6 +90,8 @@ void square1_freq_output() {
 
 	if (squareList[0].timer > 8) {
 		squareList[0].out_freq = (NTSC_CPU_CLOCK / (16 * (squareList[0].timer + 1))); 
+	} else {
+		squareList[0].out_freq = 0;
 	}
 
 }
@@ -79,6 +142,7 @@ void square1_sweep() {
 void square1_len_cnt() {
 	/* If enable bit is set on status, force the length counter do 0 */
 	if (apu.pulse_channel_1 == 0x0) {
+
 		squareList[0].len_cnt = 0;
 		/* When it reaches to 0, the sound of channel should be silenced */
 		squareList[0].env.volume = 0;
@@ -95,7 +159,7 @@ void square1_len_cnt() {
 /* APU Lenght Count Table */
 unsigned char square1_getLenghtCnt(unsigned char len) {
 	/* Verify bit 3 */
-	if (len & 0x8) {
+	if (!(len & 0x8)) {
 		switch (((len & 0x70) >> 0x4)) {
 			case 0x0:
 				if (len & 0x80)
@@ -230,10 +294,25 @@ unsigned char square1_getLenghtCnt(unsigned char len) {
 }
 
 /* Square Wave 2 */
+short square2_sample() {
+	if (squareList[1].out_freq > 0) {
+		square2_sample_cnt++;
+
+		if (square2_sample_cnt >= SQUARE2_SAMPLE)
+			square2_sample_cnt = 0;
+
+		if (square2_sample_cnt < (SQUARE2_SAMPLE * squareList[1].duty))
+			return (100 * squareList[1].env.volume);
+	
+		return -(100 * squareList[1].env.volume);
+	}
+	return 0;
+}
 
 
 /* Control the wave amplitude */
 void square2_envelope() {
+
 	/* verify if declay flag is not set, if it's not, should decay the volume */
 	if (!(squareList[1].env.c_flag)) {
 		/* The envelope starts with volume 15, and decrements every time the unit is clocked */
@@ -255,6 +334,8 @@ void square2_freq_output() {
 
 	if (squareList[1].timer > 8) {
 		squareList[1].out_freq = (NTSC_CPU_CLOCK / (16 * (squareList[1].timer + 1))); 
+	} else {
+		squareList[1].out_freq = 0;
 	}
 
 }
@@ -310,7 +391,7 @@ void square2_len_cnt() {
 	} else {
 		/* Check if halt flag is not set and check if the len_cnt is not already 0 */
 		if (squareList[0].env.loop_flag == 0) {
-			if (squareList[1.len_cnt > 0) 
+			if (squareList[1].len_cnt > 0) 
 				squareList[1].len_cnt--;
 		}
 	}
@@ -320,7 +401,7 @@ void square2_len_cnt() {
 /* APU Lenght Count Table */
 unsigned char square2_getLenghtCnt(unsigned char len) {
 	/* Verify bit 3 */
-	if (len & 0x8) {
+	if (!(len & 0x8)) {
 		switch (((len & 0x70) >> 0x4)) {
 			case 0x0:
 				if (len & 0x80)
@@ -455,6 +536,6 @@ unsigned char square2_getLenghtCnt(unsigned char len) {
 }
 
 
-void apu_framecounter() {
-	
+short square_mix() {
+	return (square1_sample() + square2_sample());
 }

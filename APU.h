@@ -2,6 +2,7 @@
 #define _APU_H_
 
 #include <SDL/SDL_mixer.h>
+#include <SDL/SDL.h>
 /* Square wave 1 */
 #define PULSE1_DUTY_ENV     0x4000
 #define PULSE1_SWEEP        0x4001
@@ -46,7 +47,7 @@ typedef struct square_wave {
 	/* It's the wavelenght */
 	unsigned short timer;
 	/* duty value used by square wave 1 and 2 */
-	unsigned char duty;
+	float duty;
 	/* Lenght counter */
 	unsigned char len_cnt;
 	/* Envelope Unit */
@@ -67,7 +68,7 @@ typedef struct apu_status {
 	/* 0 = 4 step mode, 1 = 5 step mode */
 	unsigned char frame_cnt_mode;
 	/* sequence used by the framecounter */
-	unsigned char frame_cnt_sec;
+	unsigned int  frame_cnt_sec;
 	unsigned char irq_flag;
 	unsigned char dmc_interrupt;
 } apu_status;
@@ -81,6 +82,7 @@ extern void square1_sweep();
 extern void square1_timer();
 extern void square1_len_cnt();
 extern void square1_freq_output();
+extern short square1_sample();
 
 extern unsigned char square1_getLenghtCnt(unsigned char len);
 /* Square Wave 2 */
@@ -88,11 +90,22 @@ extern void square2_envelope();
 extern void square2_sweep();
 extern void square2_len_cnt();
 extern void square2_freq_output();
+extern short square2_sample();
+
+extern float duty_list[];
 
 extern unsigned char square2_getLenghtCnt(unsigned char len);
 
+/* SDL and APU Stuff */
 
-/* Frame Counter */
-
-extern void apu_framecounter();
+/* callback used to fill the audio buffer */
+extern void fill_audio(void *data, Uint8* stream, int len); 
+/* call used to initialize SDL Audio */
+extern void open_audio();
+/* call used to close SDL Audio */
+extern void close_audio();
+/* Mix the Square 1 and Square 2 output samples */
+extern short square_mix();
+/* Apu Mix */
+extern void apu_mix();
 #endif

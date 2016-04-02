@@ -20,6 +20,18 @@ unsigned char memoryRead(unsigned short addr) {
 	if ((addr >= 0x4000) && (addr <= 0x4017)) {
 		if (addr == STATUS_REGISTER) {
 			/* TODO: if lenght counter is == 0, don't return the channel flags */
+			
+			if (squareList[0].len_cnt > 0)
+				apu.pulse_channel_1 = 1;
+			else
+				apu.pulse_channel_1 = 0;
+
+			if (squareList[1].len_cnt > 0)
+				apu.pulse_channel_2 = 1;
+			else
+				apu.pulse_channel_2 = 0;
+
+
 			return (apu.dmc_flag | apu.noise_flag | apu.triangle_flag | apu.pulse_channel_2 | apu.pulse_channel_1);
 		}
 	}
@@ -34,7 +46,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 			switch (addr) {
 				case PULSE1_DUTY_ENV:
 					/* Set Duty */
-					squareList[0].duty              = ((data & 0xC0) >> 0x6);
+					squareList[0].duty              = duty_list[((data & 0xC0) >> 0x6)];
 					/* Set haltFlag/envelope loop flag */
 					squareList[0].env.loop_flag     = ((data & 0x20) >> 0x5);
 					/* Set const flag */
@@ -67,6 +79,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 					squareList[0].env.down_cnt   = 0xF;
 					/* Load the lenght counter( find the proper value on table ) */
 					squareList[0].len_cnt = square1_getLenghtCnt(((data & 0xF8) >> 3)); 
+					square1_freq_output();
 				break;
 
 				default:	
@@ -79,7 +92,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 			switch (addr) {
 				case PULSE2_DUTY_ENV:
 					/* Set Duty */
-					squareList[1].duty              = ((data & 0xC0) >> 0x6);
+					squareList[1].duty              = duty_list[((data & 0xC0) >> 0x6)];
 					/* Set haltFlag/envelope loop flag */
 					squareList[1].env.loop_flag     = ((data & 0x20) >> 0x5);
 					/* Set const flag */
@@ -103,6 +116,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 				/* Set the low 8 bits on timer */
 				case PULSE2_PERIOD_LOW:
 					squareList[1].timer = (data & 0xFF);
+
 				break;
 
 				/* load the high 3 bits of timer */
@@ -112,6 +126,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 					squareList[1].env.down_cnt   = 0xF;
 					/* Load the lenght counter( find the proper value on table ) */
 					squareList[1].len_cnt = square1_getLenghtCnt(((data & 0xF8) >> 3)); 
+					square2_freq_output();
 				break;
 
 				default:	
@@ -121,15 +136,15 @@ void writeMemory(unsigned short addr, unsigned char data) {
 		}
 
 		if ((addr >= 0x4008) && (addr <= 0x400B)) {
-			printf("Triangle\n");
+		//	printf("Triangle\n");
 		}
 
 		if ((addr >= 0x400C) && (addr <= 0x400F)) {
-			printf("Noise\n");
+		//	printf("Noise\n");
 		}
 
 		if ((addr >= 0x4010) && (addr <= 0x4013)) {
-			printf("DMC\n");
+		//	printf("DMC\n");
 		}
 
 		/* Enable or Disable Channel individual */
@@ -144,6 +159,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 
 		/* Frame Counter, it drives the envelope, sweep and lenght count */
 		if (addr == FRAME_CNT_REG) {
+
 			apu.frame_cnt_mode   = ((data & 0x80) >> 0x7);
 			apu.irq_flag         = ((data & 0x40) >> 0x6);
 			apu.dmc_interrupt    = 0x0;
@@ -1924,9 +1940,11 @@ void CPU_execute(int cycles) {
 
 	/* debug information */
 	//printf("A: 0x%X X: 0x%X Y: 0x%X PC: 0x%X\n", A,X,Y,PC);
+	while (tick_count < cycles) {
+		opcode=memory[PC++];
 
-	opcode=memory[PC++];
+		(*op[opcode])();
+	}
 
-	(*op[opcode])();
-
+	tick_count = 0;
 }

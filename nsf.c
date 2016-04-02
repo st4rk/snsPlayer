@@ -155,7 +155,7 @@ void nsf_initTune(unsigned char *mem, unsigned char *x, unsigned char *a, int *p
 	}
 
 	/* A hold the sound number */
-	*a = 0;
+	*a = 69;
 	/* PC is now the init routine */
 	printf("init addr: 0x%X\n",fileList.header.pAddrData);
 	*pc = 0x5050;
