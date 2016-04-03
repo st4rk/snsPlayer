@@ -1,5 +1,5 @@
 TARGET = snsPlayer
-LIBS = -lm -lSDL_mixer
+LIBS = -lm -lSDL_mixer -lSDL
 CC = gcc
 CFLAGS = -g -Wall 
 
