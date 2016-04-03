@@ -59,34 +59,34 @@ short square1_sample() {
 		switch (squareList[0].duty) {
 			case 0:
 				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.125))
-					return -(100 * squareList[0].env.volume);
+					return (100 * squareList[0].env.volume);
 			
-				return  (100 * squareList[0].env.volume);
+				return  -(100 * squareList[0].env.volume);
 			break;
 
 			case 1:
-				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.25))
-						return -(100 * squareList[0].env.volume);
-				
-					return (100 * squareList[0].env.volume);
-			break;
-
-			case 2:
-				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.5))
-						return -(100 * squareList[0].env.volume);
-				
-					return (100 * squareList[0].env.volume);
-			break;
-
-			case 3:
 				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.25))
 						return (100 * squareList[0].env.volume);
 				
 					return -(100 * squareList[0].env.volume);
 			break;
 
+			case 2:
+				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.5))
+						return (100 * squareList[0].env.volume);
+				
+					return -(100 * squareList[0].env.volume);
+			break;
+
+			case 3:
+				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.75))
+						return -(100 * squareList[0].env.volume);
+				
+					return (100 * squareList[0].env.volume);
+			break;
+
 			default:
-				printf("aeho\n");
+
 			break;
 		}
 
@@ -194,30 +194,30 @@ short square2_sample() {
 		switch (squareList[1].duty) {
 			case 0:
 				if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.125))
-					return -(100 * squareList[1].env.volume);
+					return (100 * squareList[1].env.volume);
 			
-				return  (100 * squareList[1].env.volume);
+				return  -(100 * squareList[1].env.volume);
 			break;
 
 			case 1:
 			if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.25))
-					return -(100 * squareList[1].env.volume);
+					return (100 * squareList[1].env.volume);
 			
-				return (100 * squareList[1].env.volume);
+				return -(100 * squareList[1].env.volume);
 			break;
 
 			case 2:
 			if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.5))
-					return -(100 * squareList[1].env.volume);
-			
-				return (100 * squareList[1].env.volume);
-			break;
-
-			case 3:
-			if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.25))
 					return (100 * squareList[1].env.volume);
 			
 				return -(100 * squareList[1].env.volume);
+			break;
+
+			case 3:
+			if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.75))
+					return -(100 * squareList[1].env.volume);
+			
+				return (100 * squareList[1].env.volume);
 			break;
 
 			default:
@@ -456,5 +456,5 @@ unsigned char square_getLenghtCnt(unsigned char len) {
 
 
 short square_mix() {
-	return (square1_sample());
+	return (square1_sample() + square2_sample());
 }
