@@ -41,6 +41,8 @@ int main(int argc, char **argv) {
 		/* APU Frame Counter Var */
 		int cnt = 0;
 		while (1) {
+			//printf("Square1 sweep: %d\n", squareList[0].swp.enable);
+			//printf("Square1 env cflag: %d\n", squareList[0].env.c_flag);
 			/* Get System Tick */
 			tick = SDL_GetTicks();
 

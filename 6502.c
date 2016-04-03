@@ -46,7 +46,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 			switch (addr) {
 				case PULSE1_DUTY_ENV:
 					/* Set Duty */
-					squareList[0].duty              = duty_list[((data & 0xC0) >> 0x6)];
+					squareList[0].duty              = ((data & 0xC0) >> 0x6);
 					/* Set haltFlag/envelope loop flag */
 					squareList[0].env.loop_flag     = ((data & 0x20) >> 0x5);
 					/* Set const flag */
@@ -69,16 +69,17 @@ void writeMemory(unsigned short addr, unsigned char data) {
 
 				/* Set the low 8 bits on timer */
 				case PULSE1_PERIOD_LOW:
-					squareList[0].timer = (data & 0xFF);
+					squareList[0].timer = ((squareList[0].timer & 0x700) | data);
+					square1_freq_output();
 				break;
 
 				/* load the high 3 bits of timer */
 				case PULSE1_LEN_PE_HIGH:
-					squareList[0].timer      = (squareList[0].timer | ((data & 0x7) << 8));
+					squareList[0].timer      = ((squareList[0].timer & 0xFF) | ((data & 0x7) << 8));
 					/* It reset the envelope decay counter to 0xF(max) state */
 					squareList[0].env.down_cnt   = 0xF;
 					/* Load the lenght counter( find the proper value on table ) */
-					squareList[0].len_cnt = square1_getLenghtCnt(((data & 0xF8) >> 3)); 
+					squareList[0].len_cnt = square_getLenghtCnt(((data & 0xF8) >> 3)); 
 					square1_freq_output();
 				break;
 
@@ -92,7 +93,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 			switch (addr) {
 				case PULSE2_DUTY_ENV:
 					/* Set Duty */
-					squareList[1].duty              = duty_list[((data & 0xC0) >> 0x6)];
+					squareList[1].duty              = ((data & 0xC0) >> 0x6);
 					/* Set haltFlag/envelope loop flag */
 					squareList[1].env.loop_flag     = ((data & 0x20) >> 0x5);
 					/* Set const flag */
@@ -115,19 +116,20 @@ void writeMemory(unsigned short addr, unsigned char data) {
 
 				/* Set the low 8 bits on timer */
 				case PULSE2_PERIOD_LOW:
-					squareList[1].timer = (data & 0xFF);
-
+					squareList[1].timer = ((squareList[1].timer & 0x700) | data);
+					square2_freq_output();
 				break;
 
 				/* load the high 3 bits of timer */
 				case PULSE2_LEN_PE_HIGH:
-					squareList[1].timer      = (squareList[1].timer | ((data & 0x7) << 8));
+					squareList[1].timer      = ((squareList[1].timer & 0xFF) | ((data & 0x7) << 8));
 					/* It reset the envelope decay counter to 0xF(max) state */
 					squareList[1].env.down_cnt   = 0xF;
 					/* Load the lenght counter( find the proper value on table ) */
-					squareList[1].len_cnt = square1_getLenghtCnt(((data & 0xF8) >> 3)); 
+					squareList[1].len_cnt = square_getLenghtCnt(((data & 0xF8) >> 3)); 
 					square2_freq_output();
 				break;
+
 
 				default:	
 					printf("Register 0x%X not implemented \n", addr);
@@ -1939,7 +1941,6 @@ void CPU_execute(int cycles) {
 	unsigned char opcode;
 
 	/* debug information */
-	//printf("A: 0x%X X: 0x%X Y: 0x%X PC: 0x%X\n", A,X,Y,PC);
 	while (tick_count < cycles) {
 		opcode=memory[PC++];
 

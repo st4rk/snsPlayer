@@ -47,7 +47,8 @@ typedef struct square_wave {
 	/* It's the wavelenght */
 	unsigned short timer;
 	/* duty value used by square wave 1 and 2 */
-	float duty;
+	//float duty;
+	unsigned char duty;
 	/* Lenght counter */
 	unsigned char len_cnt;
 	/* Envelope Unit */
@@ -84,7 +85,6 @@ extern void square1_len_cnt();
 extern void square1_freq_output();
 extern short square1_sample();
 
-extern unsigned char square1_getLenghtCnt(unsigned char len);
 /* Square Wave 2 */
 extern void square2_envelope();
 extern void square2_sweep();
@@ -92,12 +92,9 @@ extern void square2_len_cnt();
 extern void square2_freq_output();
 extern short square2_sample();
 
-extern float duty_list[];
-
-extern unsigned char square2_getLenghtCnt(unsigned char len);
-
 /* SDL and APU Stuff */
-
+/* APU Lenght Counter table */
+extern unsigned char square_getLenghtCnt(unsigned char len);
 /* callback used to fill the audio buffer */
 extern void fill_audio(void *data, Uint8* stream, int len); 
 /* call used to initialize SDL Audio */

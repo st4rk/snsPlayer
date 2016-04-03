@@ -3,8 +3,6 @@
 /* The total of samples is determined by the sample rate div frequency */
 #define SQUARE1_SAMPLE (int) (44100/squareList[0].out_freq)
 #define SQUARE2_SAMPLE (int) (44100/squareList[1].out_freq)
-/* APU Duty Cycle (used by square waves to wave width) */
-float duty_list[] = {0.125, 0.25, 0.50, 0.75};
 
 /* NES APU has two square wave channel */
 square_wave squareList[2];
@@ -58,10 +56,40 @@ short square1_sample() {
 		if (square1_sample_cnt >= SQUARE1_SAMPLE)
 			square1_sample_cnt = 0;
 
-		if (square1_sample_cnt < (SQUARE1_SAMPLE * squareList[0].duty))
-			return (100 * squareList[0].env.volume);
-	
-		return -(100 * squareList[0].env.volume);
+		switch (squareList[0].duty) {
+			case 0:
+				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.125))
+					return -(100 * squareList[0].env.volume);
+			
+				return  (100 * squareList[0].env.volume);
+			break;
+
+			case 1:
+				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.25))
+						return -(100 * squareList[0].env.volume);
+				
+					return (100 * squareList[0].env.volume);
+			break;
+
+			case 2:
+				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.5))
+						return -(100 * squareList[0].env.volume);
+				
+					return (100 * squareList[0].env.volume);
+			break;
+
+			case 3:
+				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.25))
+						return (100 * squareList[0].env.volume);
+				
+					return -(100 * squareList[0].env.volume);
+			break;
+
+			default:
+				printf("aeho\n");
+			break;
+		}
+
 	}
 	return 0;
 }
@@ -89,7 +117,7 @@ void square1_freq_output() {
 	if the timer has a value < 8, the channel is silenced */
 
 	if (squareList[0].timer > 8) {
-		squareList[0].out_freq = (NTSC_CPU_CLOCK / (16 * (squareList[0].timer + 1))); 
+		squareList[0].out_freq = (unsigned int)(NTSC_CPU_CLOCK / (16 * (squareList[0].timer + 1))); 
 	} else {
 		squareList[0].out_freq = 0;
 	}
@@ -142,7 +170,6 @@ void square1_sweep() {
 void square1_len_cnt() {
 	/* If enable bit is set on status, force the length counter do 0 */
 	if (apu.pulse_channel_1 == 0x0) {
-
 		squareList[0].len_cnt = 0;
 		/* When it reaches to 0, the sound of channel should be silenced */
 		squareList[0].env.volume = 0;
@@ -156,144 +183,7 @@ void square1_len_cnt() {
 }
 
 
-/* APU Lenght Count Table */
-unsigned char square1_getLenghtCnt(unsigned char len) {
-	/* Verify bit 3 */
-	if (!(len & 0x8)) {
-		switch (((len & 0x70) >> 0x4)) {
-			case 0x0:
-				if (len & 0x80)
-					return 0x06;
-				else
-					return 0x05;
-			break;
-
-			case 0x1:
-				if (len & 0x80)
-					return 0xC;
-				else
-					return 0xA;
-			break;
-
-			case 0x2:
-				if (len & 0x80)
-					return 0x18;
-				else
-					return 0x14;
-			break;
-
-			case 0x3:
-				if (len & 0x80)
-					return 0x30;
-				else
-					return 0x28;
-			break;
-
-			case 0x4:
-				if (len & 0x80)
-					return 0x60;
-				else
-					return 0x50;
-			break;
-
-			case 0x5:
-				if (len & 0x80)
-					return 0x24;
-				else
-					return 0x1E;
-			break;
-
-			case 0x6:
-				if (len & 0x80)
-					return 0x08;
-				else
-					return 0x07;
-			break;
-
-			case 0x7:
-				if (len & 0x80)
-					return 0x10;
-				else
-					return 0x0D;
-			break;
-
-			default:
-				printf("Square1 Get Length Counter value error!\n");
-			break;
-		}
-	} else {
-		/* check bits 4 ~ 7 */
-		switch (((len & 0xF0) >> 0x4)) {
-			case 0x0:
-				return 0x7F;
-			break;
-
-			case 0x1:
-				return 0x1;
-			break;
-
-			case 0x2:
-				return 0x2;
-			break;
-
-			case 0x3:
-				return 0x3;
-			break;
-
-			case 0x4:
-				return 0x4;
-			break;
-
-			case 0x5:
-				return 0x5;
-			break;
-
-			case 0x6:
-				return 0x6;
-			break;
-
-			case 0x7:
-				return 0x7;
-			break;
-
-			case 0x8:
-				return 0x8;
-			break;
-
-			case 0x9:
-				return 0x9;
-			break;
-
-			case 0xA:
-				return 0xA;
-			break;
-
-			case 0xB:
-				return 0xB;
-			break;
-
-			case 0xC:
-				return 0xC;
-			break;
-
-			case 0xD:
-				return 0xD;
-			break;
-
-			case 0xF:
-				return 0xF;
-			break;
-
-			default:
-				printf("Square1 Get Length Counter value error!\n");
-			break;
-		}
-	}
-	
-	return 0x0;
-}
-
-/* Square Wave 2 */
+/* Square Wave Channel 1 */
 short square2_sample() {
 	if (squareList[1].out_freq > 0) {
 		square2_sample_cnt++;
@@ -301,14 +191,43 @@ short square2_sample() {
 		if (square2_sample_cnt >= SQUARE2_SAMPLE)
 			square2_sample_cnt = 0;
 
-		if (square2_sample_cnt < (SQUARE2_SAMPLE * squareList[1].duty))
-			return (100 * squareList[1].env.volume);
-	
-		return -(100 * squareList[1].env.volume);
+		switch (squareList[1].duty) {
+			case 0:
+				if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.125))
+					return -(100 * squareList[1].env.volume);
+			
+				return  (100 * squareList[1].env.volume);
+			break;
+
+			case 1:
+			if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.25))
+					return -(100 * squareList[1].env.volume);
+			
+				return (100 * squareList[1].env.volume);
+			break;
+
+			case 2:
+			if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.5))
+					return -(100 * squareList[1].env.volume);
+			
+				return (100 * squareList[1].env.volume);
+			break;
+
+			case 3:
+			if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.25))
+					return (100 * squareList[1].env.volume);
+			
+				return -(100 * squareList[1].env.volume);
+			break;
+
+			default:
+
+			break;
+		}
+
 	}
 	return 0;
 }
-
 
 /* Control the wave amplitude */
 void square2_envelope() {
@@ -390,7 +309,7 @@ void square2_len_cnt() {
 		squareList[1].env.volume = 0;
 	} else {
 		/* Check if halt flag is not set and check if the len_cnt is not already 0 */
-		if (squareList[0].env.loop_flag == 0) {
+		if (squareList[1].env.loop_flag == 0) {
 			if (squareList[1].len_cnt > 0) 
 				squareList[1].len_cnt--;
 		}
@@ -399,7 +318,7 @@ void square2_len_cnt() {
 
 
 /* APU Lenght Count Table */
-unsigned char square2_getLenghtCnt(unsigned char len) {
+unsigned char square_getLenghtCnt(unsigned char len) {
 	/* Verify bit 3 */
 	if (!(len & 0x8)) {
 		switch (((len & 0x70) >> 0x4)) {
@@ -537,5 +456,5 @@ unsigned char square2_getLenghtCnt(unsigned char len) {
 
 
 short square_mix() {
-	return (square1_sample() + square2_sample());
+	return (square1_sample());
 }

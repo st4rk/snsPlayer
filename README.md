@@ -1,2 +1,5 @@
 # snsPlayer
-NES/SNES music player - http://st4rk.net/snsplayer
+
+snsPlayer is SNES/NES music player. It supports NSF(NES Sound Format) and SPC(SPC 700 sound format).
+
+
