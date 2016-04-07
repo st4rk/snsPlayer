@@ -1,3 +1,10 @@
+/*
+ * 6502 CPU 
+ * Written by St4rk
+ * Illegal opcodes aren't implemented yet
+ */
+
+
 #include "6502.h"
 
 /* system memory */
@@ -11,12 +18,15 @@ unsigned char Y;
 unsigned char S;
 int PC;
 int EA;
-
 /* system tick count */
 int tick_count;
+/* Bank Switching enable */
+unsigned char isBank;
+
 
 /* Write/Read memory */
 unsigned char memoryRead(unsigned short addr) {
+	/* Verify if it's reading from the APU registers */
 	if ((addr >= 0x4000) && (addr <= 0x4017)) {
 		if (addr == STATUS_REGISTER) {
 			/* TODO: if lenght counter is == 0, don't return the channel flags */
@@ -36,7 +46,16 @@ unsigned char memoryRead(unsigned short addr) {
 		}
 	}
 
-	return (memory[addr] & 0xFF); 
+	/* Verify if bank switching is used, if yes, switch the banks */
+	if (isBank) {
+		if (addr >= 0x8000) {
+			unsigned char bankNum = memory[0x5ff8 + ((addr >> 12) - 8)];
+			return (memory[0x8000 + (bankNum * 0x1000) + (addr & 0x0FFF)]);
+		}
+	}
+
+	/* Otherwise, return memory addr */
+	return (memory[addr]);
 }
 
 void writeMemory(unsigned short addr, unsigned char data) {
@@ -1940,9 +1959,11 @@ void CPU_reset() {
 void CPU_execute(int cycles) {
 	unsigned char opcode;
 
-	/* debug information */
 	while (tick_count < cycles) {
-		opcode=memory[PC++];
+		if (macgyver_var)
+			break;
+		
+		opcode=memoryRead(PC++);
 
 		(*op[opcode])();
 	}

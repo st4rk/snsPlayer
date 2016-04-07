@@ -1,3 +1,9 @@
+/*
+ * NES Audio Processing Unit
+ * Written by St4rk
+ * Only the two square wave channels are implemented
+ */
+ 
 #ifndef _APU_H_
 #define _APU_H_
 

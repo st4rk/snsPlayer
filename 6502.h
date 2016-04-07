@@ -1,3 +1,9 @@
+/*
+ * 6502 CPU 
+ * Written by St4rk
+ * Illegal opcodes aren't implemented yet
+ */
+ 
 #ifndef _6502_H_
 #define _6502_H_
 
@@ -21,6 +27,8 @@ extern int tick_count;
 extern unsigned char macgyver_var;
 /* 6502 opcode jump table */
 extern void (*op[0x100])();
+/* Bank Switching enable */
+extern unsigned char isBank;
 /* 6502 main functions */
 extern void IRQ();
 extern void NMI();

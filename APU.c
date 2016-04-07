@@ -1,8 +1,11 @@
+/*
+ * NES Audio Processing Unit
+ * Written by St4rk
+ * Only the two square wave channels are implemented
+ */
+ 
 #include "APU.h"
 
-/* The total of samples is determined by the sample rate div frequency */
-#define SQUARE1_SAMPLE (int) (44100/squareList[0].out_freq)
-#define SQUARE2_SAMPLE (int) (44100/squareList[1].out_freq)
 
 /* NES APU has two square wave channel */
 square_wave squareList[2];
@@ -12,7 +15,10 @@ apu_status  apu;
 int square1_sample_cnt = 0;
 int square2_sample_cnt = 0;
 
-
+/*
+ * This function is the Audio Call back
+ * where our samples will be play
+ */
 void fill_audio(void *data, Uint8 *stream, int len) {
 	short *buff;
 	int i;
@@ -27,20 +33,25 @@ void fill_audio(void *data, Uint8 *stream, int len) {
 }
 
 
-
+/*
+ * This function initialize the SDL_Mixer
+ */
 void open_audio() {
 	SDL_AudioSpec as;
 	SDL_Init(SDL_INIT_AUDIO);
 	as.freq     = 44100;
 	as.format   = AUDIO_S16SYS;
 	as.channels = 2;
-	as.samples  = 4096;
+	as.samples  = 500;
 	as.callback = fill_audio;
 
 	SDL_OpenAudio(&as, NULL);
 	SDL_PauseAudio(0);
 }
 
+/*
+ * This function stop the SDL_mixer
+ */
 void close_audio() {
 	SDL_CloseAudio();
 	SDL_Quit();
@@ -53,33 +64,33 @@ short square1_sample() {
 	if (squareList[0].out_freq > 0) {
 		square1_sample_cnt++;
 
-		if (square1_sample_cnt >= SQUARE1_SAMPLE)
+		if (square1_sample_cnt >= squareList[0].out_freq)
 			square1_sample_cnt = 0;
 
 		switch (squareList[0].duty) {
 			case 0:
-				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.125))
+				if (square1_sample_cnt < (int)(squareList[0].out_freq * 0.125))
 					return (100 * squareList[0].env.volume);
 			
 				return  -(100 * squareList[0].env.volume);
 			break;
 
 			case 1:
-				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.25))
+				if (square1_sample_cnt < (int)(squareList[0].out_freq * 0.25))
 						return (100 * squareList[0].env.volume);
 				
 					return -(100 * squareList[0].env.volume);
 			break;
 
 			case 2:
-				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.5))
+				if (square1_sample_cnt < (int)(squareList[0].out_freq * 0.5))
 						return (100 * squareList[0].env.volume);
 				
 					return -(100 * squareList[0].env.volume);
 			break;
 
 			case 3:
-				if (square1_sample_cnt < (int)(SQUARE1_SAMPLE * 0.75))
+				if (square1_sample_cnt < (int)(squareList[0].out_freq * 0.75))
 						return -(100 * squareList[0].env.volume);
 				
 					return (100 * squareList[0].env.volume);
@@ -118,6 +129,7 @@ void square1_freq_output() {
 
 	if (squareList[0].timer > 8) {
 		squareList[0].out_freq = (unsigned int)(NTSC_CPU_CLOCK / (16 * (squareList[0].timer + 1))); 
+		squareList[0].out_freq = (44100/squareList[0].out_freq);
 	} else {
 		squareList[0].out_freq = 0;
 	}
@@ -188,33 +200,33 @@ short square2_sample() {
 	if (squareList[1].out_freq > 0) {
 		square2_sample_cnt++;
 
-		if (square2_sample_cnt >= SQUARE2_SAMPLE)
+		if (square2_sample_cnt >= squareList[1].out_freq)
 			square2_sample_cnt = 0;
 
 		switch (squareList[1].duty) {
 			case 0:
-				if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.125))
+				if (square2_sample_cnt < (int)(squareList[1].out_freq* 0.125))
 					return (100 * squareList[1].env.volume);
 			
 				return  -(100 * squareList[1].env.volume);
 			break;
 
 			case 1:
-			if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.25))
+			if (square2_sample_cnt < (int)(squareList[1].out_freq* 0.25))
 					return (100 * squareList[1].env.volume);
 			
 				return -(100 * squareList[1].env.volume);
 			break;
 
 			case 2:
-			if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.5))
+			if (square2_sample_cnt < (int)(squareList[1].out_freq* 0.5))
 					return (100 * squareList[1].env.volume);
 			
 				return -(100 * squareList[1].env.volume);
 			break;
 
 			case 3:
-			if (square2_sample_cnt < (int)(SQUARE2_SAMPLE * 0.75))
+			if (square2_sample_cnt < (int)(squareList[1].out_freq* 0.75))
 					return -(100 * squareList[1].env.volume);
 			
 				return (100 * squareList[1].env.volume);
@@ -253,6 +265,7 @@ void square2_freq_output() {
 
 	if (squareList[1].timer > 8) {
 		squareList[1].out_freq = (NTSC_CPU_CLOCK / (16 * (squareList[1].timer + 1))); 
+		squareList[1].out_freq = (44100/squareList[1].out_freq);
 	} else {
 		squareList[1].out_freq = 0;
 	}
