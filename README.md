@@ -1,4 +1,19 @@
 # snsPlayer
 
-snsPlayer is SNES/NES music player. It supports NSF(NES Sound Format) and SPC(SPC 700 sound format).
+snsPlayer is NES/SNES music player that is in developement.
+
+
+
+# Progress / Development
+NES Side
+
+- CPU: 90%, need to emulate the illegal opcodes
+- APU: 40%, only two square wave channels are supported.
+
+Missing features and issues:
+- Extra sound chip support
+- Fix some issues with bank switching
+
+
+
 
