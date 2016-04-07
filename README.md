@@ -1,6 +1,6 @@
 # snsPlayer
 
-snsPlayer is NES/SNES music player that is in developement.
+snsPlayer is NES/SNES music player that is in development.
 
 
 
@@ -15,5 +15,5 @@ Missing features and issues:
 - Fix some issues with bank switching
 
 
-
-
+SNES Side
+Nothing yet
