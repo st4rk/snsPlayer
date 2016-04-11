@@ -270,6 +270,7 @@ void nsf_play(char *fileName, int musicNum) {
 					case 0:
 						square1_envelope();
 						square2_envelope();
+						triangle_linear_cnt();
 					break;
 
 					case 1:
@@ -279,16 +280,28 @@ void nsf_play(char *fileName, int musicNum) {
 						square2_len_cnt();
 						square1_sweep();
 						square2_sweep();
+
+						triangle_len_cnt();
+						triangle_linear_cnt();
 					break;
 
 					case 2:
 						square1_envelope();
 						square2_envelope();
+						triangle_linear_cnt();
 					break;
 
 					case 3:
 						square1_envelope();
 						square2_envelope();
+						square1_len_cnt();
+						square2_len_cnt();
+						square1_sweep();
+						square2_sweep();
+
+
+						triangle_len_cnt();
+						triangle_linear_cnt();
 					break;
 
 					default:

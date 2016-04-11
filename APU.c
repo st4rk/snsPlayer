@@ -9,11 +9,14 @@
 
 /* NES APU has two square wave channel */
 square_wave squareList[2];
+/* NES APU has one triangle wave channel */
+triangle_wave triangle;
 /* NES APU flags */
 apu_status  apu;
-/* Sample count used by the Square waves */
+/* Sample count used by the square and triangle waves */
 int square1_sample_cnt = 0;
 int square2_sample_cnt = 0;
+int triangle_sample_cnt = 0;
 
 /*
  * This function is the Audio Call back
@@ -468,6 +471,63 @@ unsigned char square_getLenghtCnt(unsigned char len) {
 }
 
 
+/* Triangle Wave Channel */
+void triangle_freq_output() {
+	/* The output frequency of the generator can be determined by the timer(period)
+	if the timer has a value < 8, the channel is silenced */
+
+	if (triangle.timer > 8) {
+		triangle.out_freq = (unsigned int)(NTSC_CPU_CLOCK / (32 * (triangle.timer + 1))); 
+		triangle.out_freq = (unsigned int)(44100/triangle.out_freq);
+	} else {
+		triangle.out_freq = 0;
+	}
+
+}
+
+
+void triangle_len_cnt() {
+	/* If enable bit is set on status, force the length counter do 0 */
+	if (apu.triangle_flag == 0x0) {
+		/* When it reaches to 0, the sound of channel should be silenced */
+		triangle.len_cnt = 0;
+	} else {
+		/* Check if halt flag is not set and check if the len_cnt is not already 0 */
+		if (triangle.halt_linear == 0) {
+			if (triangle.len_cnt > 0) 
+				triangle.len_cnt--;
+		}
+	}
+}
+
+void triangle_linear_cnt() {
+	if (triangle.linear_cnt > 0){
+		triangle.linear_cnt--;
+	}
+}
+
+void triangle_step() {
+
+}
+
+short triangle_sample() {
+	printf("sample: %d\n", triangle.out_freq);
+	if (triangle.out_freq > 0) {
+		triangle_sample_cnt++;
+
+		if (triangle_sample_cnt >= triangle.out_freq)
+			triangle_sample_cnt = 0;
+			
+			if (square1_sample_cnt < triangle.out_freq)
+					return -(100 * 100);
+
+	}
+	return 0;
+}
+
+
+
 short square_mix() {
 	return (square1_sample() + square2_sample());
 }
+

@@ -19,6 +19,11 @@
 #define PULSE2_SWEEP        0x4005
 #define PULSE2_PERIOD_LOW   0x4006
 #define PULSE2_LEN_PE_HIGH  0x4007
+/* Triangle wave */
+#define TRIANGLE_CNT_LOAD   0x4008
+#define TRIANGLE_UNUSED     0x4009
+#define TRIANGLE_TMR_LOW    0x400A
+#define TRIANGLE_TMR_HIGH   0x400B
 /* CPU Frequency */
 #define NTSC_CPU_CLOCK      1789773
 #define PAL_CPU_CLOK        1662607
@@ -55,7 +60,7 @@ typedef struct square_wave {
 	/* duty value used by square wave 1 and 2 */
 	//float duty;
 	unsigned char duty;
-	/* Lenght counter */
+	/* Length counter */
 	unsigned char len_cnt;
 	/* Envelope Unit */
 	envelope env;
@@ -65,6 +70,28 @@ typedef struct square_wave {
 	unsigned int out_freq;
 } square_wave;
 
+typedef struct triangle_wave {
+	/* 11 Bit Timer used by triangle wave */
+	/* It's the wavelenght */
+	unsigned short timer;
+
+	/* Length counter */
+	unsigned char len_cnt;
+
+	/* Length Counter halt / linear 
+	   counter control */
+	unsigned char halt_linear;
+
+	/* Linear Counter */
+	unsigned char linear_cnt;
+
+	/* Output frequency */
+	unsigned int out_freq;
+
+	/* Triangle 32 step output */
+	unsigned char step;
+	unsigned char cnt;
+} triangle_wave;
 
 typedef struct apu_status {
 	unsigned char dmc_flag;
@@ -81,8 +108,9 @@ typedef struct apu_status {
 } apu_status;
 
 
-extern square_wave squareList[2];
-extern apu_status  apu;
+extern square_wave   squareList[2];
+extern triangle_wave triangle;
+extern apu_status    apu;
 /* Square Wave 1 */
 extern void square1_envelope();
 extern void square1_sweep();
@@ -97,6 +125,12 @@ extern void square2_sweep();
 extern void square2_len_cnt();
 extern void square2_freq_output();
 extern short square2_sample();
+
+/* Triangle Wave */
+extern void triangle_freq_output();
+extern void triangle_len_cnt();
+extern void triangle_linear_cnt();
+extern void triangle_step();
 
 /* SDL and APU Stuff */
 /* APU Lenght Counter table */

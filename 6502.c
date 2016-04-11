@@ -94,11 +94,11 @@ void writeMemory(unsigned short addr, unsigned char data) {
 
 				/* load the high 3 bits of timer */
 				case PULSE1_LEN_PE_HIGH:
-					squareList[0].timer      = ((squareList[0].timer & 0xFF) | ((data & 0x7) << 8));
+					squareList[0].timer          = ((squareList[0].timer & 0xFF) | ((data & 0x7) << 8));
 					/* It reset the envelope decay counter to 0xF(max) state */
 					squareList[0].env.down_cnt   = 0xF;
 					/* Load the lenght counter( find the proper value on table ) */
-					squareList[0].len_cnt = square_getLenghtCnt(((data & 0xF8) >> 3)); 
+					squareList[0].len_cnt        = square_getLenghtCnt(((data & 0xF8) >> 3)); 
 					square1_freq_output();
 				break;
 
@@ -141,11 +141,11 @@ void writeMemory(unsigned short addr, unsigned char data) {
 
 				/* load the high 3 bits of timer */
 				case PULSE2_LEN_PE_HIGH:
-					squareList[1].timer      = ((squareList[1].timer & 0xFF) | ((data & 0x7) << 8));
+					squareList[1].timer          = ((squareList[1].timer & 0xFF) | ((data & 0x7) << 8));
 					/* It reset the envelope decay counter to 0xF(max) state */
 					squareList[1].env.down_cnt   = 0xF;
 					/* Load the lenght counter( find the proper value on table ) */
-					squareList[1].len_cnt = square_getLenghtCnt(((data & 0xF8) >> 3)); 
+					squareList[1].len_cnt        = square_getLenghtCnt(((data & 0xF8) >> 3)); 
 					square2_freq_output();
 				break;
 
@@ -157,7 +157,27 @@ void writeMemory(unsigned short addr, unsigned char data) {
 		}
 
 		if ((addr >= 0x4008) && (addr <= 0x400B)) {
-		//	printf("Triangle\n");
+			switch (addr) {
+				case TRIANGLE_CNT_LOAD:
+					triangle.halt_linear = ((data & 0x80) >> 0x7);
+					triangle.linear_cnt  =  (data & 0x7F);
+				break;
+
+				case TRIANGLE_UNUSED:
+
+				break;
+
+				case TRIANGLE_TMR_LOW:
+					triangle.timer = ((triangle.timer & 0x700) | data);
+					triangle_freq_output();
+				break;
+
+				case TRIANGLE_TMR_HIGH:
+					triangle.timer      = ((triangle.timer & 0xFF) | ((data & 0x7) << 8));
+					triangle.len_cnt    = square_getLenghtCnt(((data & 0xF8) >> 3)); 
+					triangle_freq_output();
+				break;
+			}
 		}
 
 		if ((addr >= 0x400C) && (addr <= 0x400F)) {

@@ -17,3 +17,7 @@ Missing features and issues:
 
 SNES Side
 Nothing yet
+
+
+# Dependencies
+To build the snsPlayer you will need to install SDL 1.2 and SDL Mixer.
