@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 /* 
  * Here is the list of extra mapper that can be used 
  */
@@ -62,7 +63,7 @@ typedef struct nsf_header {
 typedef struct nsf_file {
 	unsigned char *buffer;
 	unsigned int   buffer_size;
-	nsf_header header;
+	nsf_header     header;
 } nsf_file;
 
 /* Load an NSF File */
@@ -75,5 +76,7 @@ extern void nsf_showInfo();
 extern void nsf_freeMemory();
 /* Initialize a NSF music as well as the 6502 */
 extern void nsf_initTune(unsigned char *isBank, unsigned char *mem, unsigned char *x, unsigned char *a, int *pc);
+/* conio function, used to async keyboard input */
+extern int  kbhit(void);
 
 #endif

@@ -8,8 +8,39 @@
 #include "nsf.h"
 #include "6502.h"
 
+
 /* List of NSF in folder */
 nsf_file fileList;
+
+/* Current track number */
+unsigned int trackNum = 0;
+
+/*
+ * conio function, used to async keyboard input
+ */
+int kbhit(void) {
+
+    struct timeval tv;
+
+	fd_set read_fd;
+
+	tv.tv_sec=0;
+
+	tv.tv_usec=0;
+
+	FD_ZERO(&read_fd);
+
+	FD_SET(0,&read_fd);
+
+	if(select(1, &read_fd, NULL, NULL, &tv) == -1)
+		return 0;
+
+	if(FD_ISSET(0,&read_fd))
+		return 1;
+
+	return 0;
+
+}
 
 /* 
  * This function load an NSF file into memory and load the NSF header from it
@@ -75,7 +106,8 @@ void nsf_showInfo() {
 	printf("Name:      %s\n", fileList.header.songName);
 	printf("Artist:    %s\n", fileList.header.artistName);
 	printf("Copyright: %s\n", fileList.header.copyright);
-	printf("Musics: %d\n", fileList.header.tSounds);
+	printf("Musics:    %d\n", fileList.header.tSounds);
+	printf("Track:     %d\n", trackNum);
 }
 
 /*
@@ -205,6 +237,18 @@ void nsf_play(char *fileName, int musicNum) {
 	/* Used by for */
 	unsigned int i     = 0;
 
+	/* store the first track to be sign */
+	trackNum = musicNum;
+
+initAgain:
+
+#ifdef WIN32
+	system("cls");
+#endif
+#ifdef __LINUX__
+	system("clear");
+#endif
+
 	/* Open your file */
 	if (nsf_loadFile(fileName) != 0xDEADDEAD) {	
 		
@@ -230,7 +274,7 @@ void nsf_play(char *fileName, int musicNum) {
 		/* initialize tune informations */
 		nsf_initTune(&isBank, memory, &X, &A, &PC);
 
-		A = musicNum;
+		A = trackNum;
 
 		while (1) {
 			CPU_execute(114);
@@ -247,10 +291,34 @@ void nsf_play(char *fileName, int musicNum) {
 
 		/* APU Frame Counter Var */
 		int cnt = 0;
-		while (1) {
+		while (1) {			
 
 			/* Get System Tick */
 			tick = SDL_GetTicks();
+
+			/* 
+			 * verify if there is key into keyboard buffer;
+			 */
+			if (kbhit()) {
+				unsigned char c = getchar();
+
+	 			switch (c) {
+	 				case 110:
+	 					if (trackNum < fileList.header.tSounds) {
+	 						trackNum++;
+	 						goto initAgain;
+	 					}
+	 				break;
+
+	 				case 98:
+	 					if (trackNum > 0) {
+	 						trackNum--;
+	 						goto initAgain;
+	 					}
+	 				break;
+	 			}
+
+			}
 
 			/* Execute the cpu with 114 ticks */
 			CPU_execute(114);

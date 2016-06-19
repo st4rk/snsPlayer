@@ -511,12 +511,12 @@ void triangle_step() {
 }
 
 short triangle_sample() {
-	printf("sample: %d\n", triangle.out_freq);
 	if (triangle.out_freq > 0) {
 		triangle_sample_cnt++;
 
-		if (triangle_sample_cnt >= triangle.out_freq)
+		if (triangle_sample_cnt >= triangle.out_freq){
 			triangle_sample_cnt = 0;
+		}
 			
 			if (square1_sample_cnt < triangle.out_freq)
 					return -(100 * 100);
