@@ -74,9 +74,9 @@ short square_sample(unsigned char unit) {
 			square_sample_cnt[unit] = 0;
 
 		if (square_sample_cnt[unit] < (squareList[unit].out_freq * duty_freq[squareList[unit].duty]))
-			return (INTERNAL_VOLUME * squareList[unit].env.volume);
+			return (squareList[unit].env.volume);
 	
-		return  -(INTERNAL_VOLUME * squareList[unit].env.volume);
+		return  -(squareList[unit].env.volume);
 	}
 	return 0;
 }
@@ -332,7 +332,10 @@ unsigned char getLengthCnt(unsigned char len) {
  *  Triangle Wave Channel
  */
 void triangle_freq_output() {
-
+	if (triangle.timer == 0) {
+		triangle.timer = 408;2
+		
+	}
 	triangle.out_freq = (unsigned int)(NTSC_CPU_CLOCK / (32 * (triangle.timer + 1))); 
 	triangle.out_freq = (unsigned int)(44100/triangle.out_freq);
 
@@ -378,14 +381,12 @@ void triangle_linear_cnt() {
  * triangle sequencer
  */
 void triangle_sequencer() {
-	if (triangle.triSequence > 32) {
-		triangle.triSequence = 0;
-		triangle.seqValue = triangle_sequence[0];
+	if (triangle.triSequence > 31) {
+		triangle.triSequence = 1;
+		triangle.seqValue = triangle_sequence[1];
 	} else {
 		triangle.seqValue = triangle_sequence[triangle.triSequence++];
 	}
-
-	triangle_freq_output();
 }
 
 
@@ -393,6 +394,7 @@ void triangle_sequencer() {
  * triangle timer
  */
 void triangle_timer() {
+
 	if (triangle.tmr_cnt == 0) {
 		triangle.tmr_cnt = triangle.timer;
 		
@@ -406,17 +408,18 @@ void triangle_timer() {
 
 
 short triangle_samples() {
-	triangle_timer();
+
 	if (triangle.timer && triangle.len_cnt && triangle.linear_cnt) {
 		triangle_sample_cnt++;
 
 
-		if (triangle_sample_cnt >= triangle.out_freq) {
-			triangle_sample_cnt = 0;
+		if (triangle_sample_cnt > triangle.out_freq) {
+			triangle_sample_cnt = triangle_sample_cnt - triangle.out_freq;
+			triangle_sequencer();
 		}
 
 		if (triangle_sample_cnt < triangle.out_freq) {
-			return (INTERNAL_VOLUME * triangle.seqValue * 0x10);
+			return (triangle.seqValue * 0x5);
 		}
 		
 	}
@@ -504,7 +507,8 @@ void noise_timer() {
  * Calculate the output frequency
  */
 void noise_out_freq() {
-	noise.out_freq = (unsigned int)(NTSC_CPU_CLOCK / (32* (noise.timer + 1))); 
+
+	noise.out_freq = (unsigned int)(NTSC_CPU_CLOCK /  (16 * noise.timer + 1)); 
 	noise.out_freq = (44100/noise.out_freq);
 }
 
@@ -513,8 +517,10 @@ void noise_out_freq() {
  * Square Wave Samples
  */
 short noise_samples() {
+	noise_envelope();
 	noise_lfsr();
-	if (noise.timer > 0) {
+
+	if (noise.timer && noise.len_cnt) {
 		noise_sample_cnt++;
 
 		if (noise_sample_cnt >= noise.out_freq) {
@@ -522,7 +528,7 @@ short noise_samples() {
 		}
 
 		if (noise_sample_cnt < noise.out_freq) {
-			return (INTERNAL_VOLUME * noise.env.volume * ((noise.lfsr & 1) * 0x5));
+			return (noise.env.volume * ((noise.lfsr & 1) * 0x2));
 		}
 		
 		return 0;
@@ -532,12 +538,13 @@ short noise_samples() {
 
 short square_mix() {
 	
-	float sound_mix = (float)(square_sample(SQUARE_WAVE_UNIT_1) + square_sample(SQUARE_WAVE_UNIT_2));
+	float sound_mix = 0.0f;//(float)(square_sample(SQUARE_WAVE_UNIT_1) + square_sample(SQUARE_WAVE_UNIT_2));
 	sound_mix = 95.88f / (8128.0f / (sound_mix + 100.0f));
 
 	float tnd_out = 159.79f / (1.0f / ((float)noise_samples()/12241.0f + (float)triangle_samples()/8700.0f) + 15.0f);
 	sound_mix += tnd_out;
+	
 
-	return (short)sound_mix * 100;
+	return (short)(sound_mix * 10000);
 }
 
