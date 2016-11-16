@@ -11,12 +11,14 @@
 square_wave squareList[2];
 /* NES APU has one triangle wave channel */
 triangle_wave triangle;
+/* NES APU has one noise wave channel */
+noise_wave noise;
 /* NES APU flags */
 apu_status  apu;
 /* Sample count used by the square and triangle waves */
-int square1_sample_cnt = 0;
-int square2_sample_cnt = 0;
-int triangle_sample_cnt = 0;
+unsigned int square_sample_cnt[] = {0, 0};
+unsigned int triangle_sample_cnt = 0;
+unsigned int noise_sample_cnt    = 0;
 
 /*
  * This function is the Audio Call back
@@ -24,15 +26,16 @@ int triangle_sample_cnt = 0;
  */
 void fill_audio(void *data, Uint8 *stream, int len) {
 	short *buff;
-	int i;
 
 	buff = (short*)stream;
 
-	len /=2; /* short  */
-	for (i = 0; i < len; i+= 2) {
+	len /= 2;
+
+	for (int i = 0; i < len; i += 2) {
 		buff[i]   = square_mix();
-		buff[i+1] = buff[i]; 
+		buff[i+1] = buff[i];
 	}
+
 }
 
 
@@ -45,7 +48,7 @@ void open_audio() {
 	as.freq     = 44100;
 	as.format   = AUDIO_S16SYS;
 	as.channels = 2;
-	as.samples  = 500;
+	as.samples  = 256;
 	as.callback = fill_audio;
 
 	SDL_OpenAudio(&as, NULL);
@@ -60,281 +63,135 @@ void close_audio() {
 	SDL_Quit();
 }
 
+/**
+ * Square Wave Samples
+ */
+short square_sample(unsigned char unit) {
+	if (squareList[unit].out_freq > 0) {
+		square_sample_cnt[unit]++;
 
+		if (square_sample_cnt[unit] >= squareList[unit].out_freq)
+			square_sample_cnt[unit] = 0;
 
-/* Square Wave Channel 1 */
-short square1_sample() {
-	if (squareList[0].out_freq > 0) {
-		square1_sample_cnt++;
-
-		if (square1_sample_cnt >= squareList[0].out_freq)
-			square1_sample_cnt = 0;
-
-		switch (squareList[0].duty) {
-			case 0:
-				if (square1_sample_cnt < (int)(squareList[0].out_freq * 0.125))
-					return (100 * squareList[0].env.volume);
-			
-				return  -(100 * squareList[0].env.volume);
-			break;
-
-			case 1:
-				if (square1_sample_cnt < (int)(squareList[0].out_freq * 0.25))
-						return (100 * squareList[0].env.volume);
-				
-					return -(100 * squareList[0].env.volume);
-			break;
-
-			case 2:
-				if (square1_sample_cnt < (int)(squareList[0].out_freq * 0.5))
-						return (100 * squareList[0].env.volume);
-				
-					return -(100 * squareList[0].env.volume);
-			break;
-
-			case 3:
-				if (square1_sample_cnt < (int)(squareList[0].out_freq * 0.75))
-						return -(100 * squareList[0].env.volume);
-				
-					return (100 * squareList[0].env.volume);
-			break;
-
-			default:
-
-			break;
-		}
-
+		if (square_sample_cnt[unit] < (squareList[unit].out_freq * duty_freq[squareList[unit].duty]))
+			return (INTERNAL_VOLUME * squareList[unit].env.volume);
+	
+		return  -(INTERNAL_VOLUME * squareList[unit].env.volume);
 	}
 	return 0;
 }
 
-/* Control the wave amplitude */
-void square1_envelope() {
-
-	/* verify if declay flag is not set, if it's not, should decay the volume */
-	if (!(squareList[0].env.c_flag)) {
-		/* The envelope starts with volume 15, and decrements every time the unit is clocked */
-		if (squareList[0].env.volume > 0) 
-			squareList[0].env.volume--;
+/**
+ * Control the wave amplitude 
+ */
+void square_envelope(unsigned char unit) {
+	/**
+	 * verify if decay flag is not set, if it's not, should decay the volume 
+	 */
+	if (!(squareList[unit].env.c_flag)) {
+		/**
+		 * The envelope starts with volume 15, and decrements every time the unit is clocked 
+		 */
+		if (squareList[unit].env.volume > 0) 
+			squareList[unit].env.volume--;
 		else {
-			/* Check if the envelope loop flag is enable, if it's, should to load
-			0xF(15) to volume and count down again */
-			if (squareList[0].env.loop_flag == 1) 
-				squareList[0].env.volume = 0xF;
+			/** 
+			 * Check if the envelope loop flag is enable, if it's, should to load
+			 * 0xF(15) to volume and count down again 
+			 */
+			if (squareList[unit].env.loop_flag == 1) 
+				squareList[unit].env.volume = 0xF;
 		}
 	}
 }
 
 
-void square1_freq_output() {
-	/* The output frequency of the generator can be determined by the timer(period)
-	if the timer has a value < 8, the channel is silenced */
+/**
+ * Calculate the output frequency
+ */
+void square_freq_output(unsigned char unit) {
+	/**
+	 * The output frequency of the generator can be determined by the timer(period)
+	 * if the timer has a value < 8, the channel is silenced 
+	 */
 
-	if (squareList[0].timer > 8) {
-		squareList[0].out_freq = (unsigned int)(NTSC_CPU_CLOCK / (16 * (squareList[0].timer + 1))); 
-		squareList[0].out_freq = (44100/squareList[0].out_freq);
+	if (squareList[unit].timer > 8) {
+		squareList[unit].out_freq = (unsigned int)(NTSC_CPU_CLOCK / (16 * (squareList[unit].timer + 1))); 
+		squareList[unit].out_freq = (44100/squareList[unit].out_freq);
 	} else {
-		squareList[0].out_freq = 0;
+		squareList[unit].out_freq = 0;
 	}
 
 }
 
-/* Control wave period */
-void square1_sweep() {
+/**
+ * Control wave period 
+ */
+void square_sweep(unsigned char unit) {
 	unsigned short newPeriod = 0x0;
-	if (squareList[0].swp.enable) {
+	if (squareList[unit].swp.enable) {
 		/* if the divider counter is not equal 0, decrement */
-		if (squareList[0].swp.divider_cnt > 0)
-			squareList[0].swp.divider_cnt--;
+		if (squareList[unit].swp.divider_cnt > 0)
+			squareList[unit].swp.divider_cnt--;
 		else {
 			/* it's equal a 0, the counter should be set with P */
-			squareList[0].swp.divider_cnt = squareList[0].swp.period;
+			squareList[unit].swp.divider_cnt = squareList[unit].swp.period;
 			/* the pulse's period is adjusted */
 
 			/* Verify if timer >= 8, otherwise the channel should be silenced */
-			if (squareList[0].timer >= 8) {
+			if (squareList[unit].timer >= 8) {
 				/* Verify if negated flag is enable, if yes, you should decrement the 
 				shift value from timer, on channel 2, you should increment + 1 to the final result*/
-
-				if (squareList[0].swp.neg_flag) /* a negative sweep on pulse channel 1 will subtract the shifted period value minus 1. */
-					newPeriod = (squareList[0].timer - (squareList[0].timer >> squareList[0].swp.shift_cnt) - 1);
+				
+				
+				/* a negative sweep on pulse channel 1 will subtract the shifted period value minus 1. */
+				if (squareList[unit].swp.neg_flag) 
+					newPeriod = (squareList[unit].timer - (squareList[unit].timer >> squareList[unit].swp.shift_cnt) - 1);
 				else
-					newPeriod = (squareList[0].timer + (squareList[0].timer >> squareList[0].swp.shift_cnt));
+					newPeriod = (squareList[unit].timer + (squareList[unit].timer >> squareList[unit].swp.shift_cnt));
 			
 
 				/* if the target period (current period(timer) + shift result) is greater than 0x7FF
 				the channel should be silenced */
 				if (newPeriod > 0x7FF) {
-					squareList[0].env.volume = 0;
+					squareList[unit].env.volume = 0;
 				} else {
-					if ((squareList[0].swp.enable) && (squareList[0].swp.shift_cnt != 0)) {
+					if ((squareList[unit].swp.enable) && (squareList[unit].swp.shift_cnt != 0)) {
 						/* Store new period and update the frequency */
-						squareList[0].timer = newPeriod;
-						square1_freq_output(); 
+						squareList[unit].timer = newPeriod;
+						square_freq_output(unit); 
 					}
 				}
 
 			} else {
-				squareList[0].env.volume = 0;
+				squareList[unit].env.volume = 0;
 			}
 		}
 	}
 }
 
-
-void square1_len_cnt() {
+/**
+ * Unit Length Counter
+ */
+void square_len_cnt(unsigned char unit) {
 	/* If enable bit is set on status, force the length counter do 0 */
 	if (apu.pulse_channel_1 == 0x0) {
-		squareList[0].len_cnt = 0;
+		squareList[unit].len_cnt = 0;
 		/* When it reaches to 0, the sound of channel should be silenced */
-		squareList[0].env.volume = 0;
+		squareList[unit].env.volume = 0;
 	} else {
-		/* Check if halt flag is not set and check if the len_cnt is not already 0 */
-		if (squareList[0].env.loop_flag == 0) {
-			if (squareList[0].len_cnt > 0) 
-				squareList[0].len_cnt--;
-		}
-	}
-}
-
-
-/* Square Wave Channel 1 */
-short square2_sample() {
-	if (squareList[1].out_freq > 0) {
-		square2_sample_cnt++;
-
-		if (square2_sample_cnt >= squareList[1].out_freq)
-			square2_sample_cnt = 0;
-
-		switch (squareList[1].duty) {
-			case 0:
-				if (square2_sample_cnt < (int)(squareList[1].out_freq* 0.125))
-					return (100 * squareList[1].env.volume);
-			
-				return  -(100 * squareList[1].env.volume);
-			break;
-
-			case 1:
-			if (square2_sample_cnt < (int)(squareList[1].out_freq* 0.25))
-					return (100 * squareList[1].env.volume);
-			
-				return -(100 * squareList[1].env.volume);
-			break;
-
-			case 2:
-			if (square2_sample_cnt < (int)(squareList[1].out_freq* 0.5))
-					return (100 * squareList[1].env.volume);
-			
-				return -(100 * squareList[1].env.volume);
-			break;
-
-			case 3:
-			if (square2_sample_cnt < (int)(squareList[1].out_freq* 0.75))
-					return -(100 * squareList[1].env.volume);
-			
-				return (100 * squareList[1].env.volume);
-			break;
-
-			default:
-
-			break;
+		/* if the len_cnt reachs to 0, silence the channel */
+		if (squareList[unit].len_cnt > 0) {
+			squareList[unit].len_cnt--;
+		} else {
+			squareList[unit].env.volume = 0;
 		}
 
 	}
-	return 0;
 }
-
-/* Control the wave amplitude */
-void square2_envelope() {
-
-	/* verify if declay flag is not set, if it's not, should decay the volume */
-	if (!(squareList[1].env.c_flag)) {
-		/* The envelope starts with volume 15, and decrements every time the unit is clocked */
-		if (squareList[1].env.volume > 0) 
-			squareList[1].env.volume--;
-		else {
-			/* Check if the envelope loop flag is enable, if it's, should to load
-			0xF(15) to volume and count down again */
-			if (squareList[1].env.loop_flag == 1) 
-				squareList[1].env.volume = 0xF;
-		}
-	}
-}
-
-
-void square2_freq_output() {
-	/* The output frequency of the generator can be determined by the timer(period)
-	if the timer has a value < 8, the channel is silenced */
-
-	if (squareList[1].timer > 8) {
-		squareList[1].out_freq = (NTSC_CPU_CLOCK / (16 * (squareList[1].timer + 1))); 
-		squareList[1].out_freq = (44100/squareList[1].out_freq);
-	} else {
-		squareList[1].out_freq = 0;
-	}
-
-}
-
-/* Control wave period */
-void square2_sweep() {
-	unsigned short newPeriod = 0x0;
-	if (squareList[1].swp.enable) {
-		/* if the divider counter is not equal 0, decrement */
-		if (squareList[1].swp.divider_cnt > 0)
-			squareList[1].swp.divider_cnt--;
-		else {
-			/* it's equal a 0, the counter should be set with P */
-			squareList[1].swp.divider_cnt = squareList[0].swp.period;
-			/* the pulse's period is adjusted */
-
-			/* Verify if timer >= 8, otherwise the channel should be silenced */
-			if (squareList[1].timer >= 8) {
-				/* Verify if negated flag is enable, if yes, you should decrement the 
-				shift value from timer, on channel 2, you should increment + 1 to the final result*/
-
-				if (squareList[1].swp.neg_flag) /* a negative sweep on pulse channel 1 will subtract the shifted period value minus 1. */
-					newPeriod = (squareList[1].timer - (squareList[1].timer >> squareList[1].swp.shift_cnt) - 1);
-				else
-					newPeriod = (squareList[1].timer + (squareList[1].timer >> squareList[1].swp.shift_cnt));
-			
-
-				/* if the target period (current period(timer) + shift result) is greater than 0x7FF
-				the channel should be silenced */
-				if (newPeriod > 0x7FF) {
-					squareList[1].env.volume = 0;
-				} else {
-					if ((squareList[1].swp.enable) && (squareList[1].swp.shift_cnt != 0)) {
-						/* Store new period and update the frequency */
-						squareList[1].timer = newPeriod;
-						square2_freq_output(); 
-					}
-				}
-
-			} else {
-				squareList[1].env.volume = 0;
-			}
-		}
-	}
-}
-
-void square2_len_cnt() {
-	/* If enable bit is set on status, force the length counter do 0 */
-	if (apu.pulse_channel_2 == 0x0) {
-		squareList[1].len_cnt = 0;
-		/* When it reaches to 0, the sound of channel should be silenced */
-		squareList[1].env.volume = 0;
-	} else {
-		/* Check if halt flag is not set and check if the len_cnt is not already 0 */
-		if (squareList[1].env.loop_flag == 0) {
-			if (squareList[1].len_cnt > 0) 
-				squareList[1].len_cnt--;
-		}
-	}
-}
-
 
 /* APU Lenght Count Table */
-unsigned char square_getLenghtCnt(unsigned char len) {
+unsigned char getLengthCnt(unsigned char len) {
 	/* Verify bit 3 */
 	if (!(len & 0x8)) {
 		switch (((len & 0x70) >> 0x4)) {
@@ -471,17 +328,13 @@ unsigned char square_getLenghtCnt(unsigned char len) {
 }
 
 
-/* Triangle Wave Channel */
+/*
+ *  Triangle Wave Channel
+ */
 void triangle_freq_output() {
-	/* The output frequency of the generator can be determined by the timer(period)
-	if the timer has a value < 8, the channel is silenced */
 
-	if (triangle.timer > 8) {
-		triangle.out_freq = (unsigned int)(NTSC_CPU_CLOCK / (32 * (triangle.timer + 1))); 
-		triangle.out_freq = (unsigned int)(44100/triangle.out_freq);
-	} else {
-		triangle.out_freq = 0;
-	}
+	triangle.out_freq = (unsigned int)(NTSC_CPU_CLOCK / (32 * (triangle.timer + 1))); 
+	triangle.out_freq = (unsigned int)(44100/triangle.out_freq);
 
 }
 
@@ -493,7 +346,7 @@ void triangle_len_cnt() {
 		triangle.len_cnt = 0;
 	} else {
 		/* Check if halt flag is not set and check if the len_cnt is not already 0 */
-		if (triangle.halt_linear == 0) {
+		if (triangle.controlFlag == 0) {
 			if (triangle.len_cnt > 0) 
 				triangle.len_cnt--;
 		}
@@ -501,33 +354,190 @@ void triangle_len_cnt() {
 }
 
 void triangle_linear_cnt() {
-	if (triangle.linear_cnt > 0){
-		triangle.linear_cnt--;
+	/* check if halt flag is enable */
+	if (triangle.haltFlag) {
+		if (triangle.linear_cnt <= 0) {
+			/** realod the linear counter */
+			triangle.linear_cnt = triangle.linear;
+		} else {
+			/** decrement linear counter */
+			triangle.linear_cnt--;
+		}
+	}
+
+	/** if control flag is clear, clear halt flag */
+	if (!triangle.controlFlag) {
+		triangle.haltFlag = 0;
 	}
 }
 
-void triangle_step() {
 
+
+
+/**
+ * triangle sequencer
+ */
+void triangle_sequencer() {
+	if (triangle.triSequence > 32) {
+		triangle.triSequence = 0;
+		triangle.seqValue = triangle_sequence[0];
+	} else {
+		triangle.seqValue = triangle_sequence[triangle.triSequence++];
+	}
+
+	triangle_freq_output();
 }
 
-short triangle_sample() {
-	if (triangle.out_freq > 0) {
+
+/**
+ * triangle timer
+ */
+void triangle_timer() {
+	if (triangle.tmr_cnt == 0) {
+		triangle.tmr_cnt = triangle.timer;
+		
+		if (triangle.len_cnt  && triangle.linear_cnt) {
+			triangle_sequencer();
+		}
+	} else {
+		triangle.tmr_cnt--;
+	}
+}
+
+
+short triangle_samples() {
+	triangle_timer();
+	if (triangle.timer && triangle.len_cnt && triangle.linear_cnt) {
 		triangle_sample_cnt++;
 
-		if (triangle_sample_cnt >= triangle.out_freq){
+
+		if (triangle_sample_cnt >= triangle.out_freq) {
 			triangle_sample_cnt = 0;
 		}
-			
-			if (square1_sample_cnt < triangle.out_freq)
-					return -(100 * 100);
 
+		if (triangle_sample_cnt < triangle.out_freq) {
+			return (INTERNAL_VOLUME * triangle.seqValue * 0x10);
+		}
+		
 	}
+
 	return 0;
 }
 
 
+/**
+ * Noise Wave 
+ */
+
+
+/**
+ * Unit Length Counter
+ */
+void noise_len_cnt() {
+	/* If enable bit is set on status, force the length counter do 0 */
+	if (apu.noise_flag == 0x0) {
+		noise.len_cnt = 0;
+		/* When it reaches to 0, the sound of channel should be silenced */
+		noise.env.volume = 0;
+	} else {
+		/* Check if halt flag is not set and check if the len_cnt is not already 0 */
+		if (noise.len_cnt > 0){
+			noise.len_cnt--;
+		}  else  {
+			noise.len_cnt = 0;
+		}
+
+	}
+}
+
+
+/**
+ * Control the wave amplitude 
+ */
+void noise_envelope() {
+	/**
+	 * verify if decay flag is not set, if it's not, should decay the volume 
+	 */
+	if (!(noise.env.c_flag)) {
+		/**
+		 * The envelope starts with volume 15, and decrements every time the unit is clocked 
+		 */
+		if (noise.env.volume > 0) 
+			noise.env.volume--;
+		else {
+			/** 
+			 * Check if the envelope loop flag is enable, if it's, should to load
+			 * 0xF(15) to volume and count down again 
+			 */
+			if (noise.env.loop_flag == 1) 
+				noise.env.volume = 0xF;
+		}
+	}
+}
+
+
+/**
+ * Noise Linear feedback shift register
+ */
+void noise_lfsr() {
+	unsigned char mode = noise.mode == 0 ? 13 : 8;
+
+	unsigned short bit = (noise.lfsr >> 14) ^ (noise.lfsr >> mode);
+	bit = (bit | 0x4000);
+	noise.lfsr = (noise.lfsr << 1) | (bit & 0x1);
+	noise_out_freq();
+}
+
+/**
+ * Noise timer
+ */
+void noise_timer() {
+	if (noise.tmr_cnt == 0) {
+		noise.tmr_cnt = noise.timer;
+		noise_lfsr();
+	} else {
+		noise.tmr_cnt--;
+	}
+}
+
+/**
+ * Calculate the output frequency
+ */
+void noise_out_freq() {
+	noise.out_freq = (unsigned int)(NTSC_CPU_CLOCK / (32* (noise.timer + 1))); 
+	noise.out_freq = (44100/noise.out_freq);
+}
+
+
+/**
+ * Square Wave Samples
+ */
+short noise_samples() {
+	noise_lfsr();
+	if (noise.timer > 0) {
+		noise_sample_cnt++;
+
+		if (noise_sample_cnt >= noise.out_freq) {
+			noise_sample_cnt = 0;
+		}
+
+		if (noise_sample_cnt < noise.out_freq) {
+			return (INTERNAL_VOLUME * noise.env.volume * ((noise.lfsr & 1) * 0x5));
+		}
+		
+		return 0;
+	}
+	return 0;
+}
 
 short square_mix() {
-	return (square1_sample() + square2_sample());
+	
+	float sound_mix = (float)(square_sample(SQUARE_WAVE_UNIT_1) + square_sample(SQUARE_WAVE_UNIT_2));
+	sound_mix = 95.88f / (8128.0f / (sound_mix + 100.0f));
+
+	float tnd_out = 159.79f / (1.0f / ((float)noise_samples()/12241.0f + (float)triangle_samples()/8700.0f) + 15.0f);
+	sound_mix += tnd_out;
+
+	return (short)sound_mix * 100;
 }
 

@@ -8,7 +8,7 @@
 #include "6502.h"
 
 /* system memory */
-unsigned char memory[65536];
+unsigned char memory[0xFFFFF];
 
 /* system registers */
 unsigned char A;
@@ -20,6 +20,7 @@ int PC;
 int EA;
 /* system tick count */
 int tick_count;
+
 /* Bank Switching enable */
 unsigned char isBank;
 
@@ -41,6 +42,11 @@ unsigned char memoryRead(unsigned short addr) {
 			else
 				apu.pulse_channel_2 = 0;
 
+			if (noise.len_cnt > 0)
+				apu.noise_flag = 1;
+			else
+				apu.noise_flag = 0;
+
 
 			return (apu.dmc_flag | apu.noise_flag | apu.triangle_flag | apu.pulse_channel_2 | apu.pulse_channel_1);
 		}
@@ -54,7 +60,6 @@ unsigned char memoryRead(unsigned short addr) {
 		}
 	}
 
-	/* Otherwise, return memory addr */
 	return (memory[addr]);
 }
 
@@ -89,7 +94,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 				/* Set the low 8 bits on timer */
 				case PULSE1_PERIOD_LOW:
 					squareList[0].timer = ((squareList[0].timer & 0x700) | data);
-					square1_freq_output();
+					square_freq_output(SQUARE_WAVE_UNIT_1);
 				break;
 
 				/* load the high 3 bits of timer */
@@ -98,8 +103,8 @@ void writeMemory(unsigned short addr, unsigned char data) {
 					/* It reset the envelope decay counter to 0xF(max) state */
 					squareList[0].env.down_cnt   = 0xF;
 					/* Load the lenght counter( find the proper value on table ) */
-					squareList[0].len_cnt        = square_getLenghtCnt(((data & 0xF8) >> 3)); 
-					square1_freq_output();
+					squareList[0].len_cnt        = getLengthCnt(((data & 0xF8) >> 3)); 
+					square_freq_output(SQUARE_WAVE_UNIT_1);
 				break;
 
 				default:	
@@ -136,7 +141,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 				/* Set the low 8 bits on timer */
 				case PULSE2_PERIOD_LOW:
 					squareList[1].timer = ((squareList[1].timer & 0x700) | data);
-					square2_freq_output();
+					square_freq_output(SQUARE_WAVE_UNIT_2);
 				break;
 
 				/* load the high 3 bits of timer */
@@ -145,8 +150,8 @@ void writeMemory(unsigned short addr, unsigned char data) {
 					/* It reset the envelope decay counter to 0xF(max) state */
 					squareList[1].env.down_cnt   = 0xF;
 					/* Load the lenght counter( find the proper value on table ) */
-					squareList[1].len_cnt        = square_getLenghtCnt(((data & 0xF8) >> 3)); 
-					square2_freq_output();
+					squareList[1].len_cnt        = getLengthCnt(((data & 0xF8) >> 3)); 
+					square_freq_output(SQUARE_WAVE_UNIT_2);
 				break;
 
 
@@ -159,8 +164,8 @@ void writeMemory(unsigned short addr, unsigned char data) {
 		if ((addr >= 0x4008) && (addr <= 0x400B)) {
 			switch (addr) {
 				case TRIANGLE_CNT_LOAD:
-					triangle.halt_linear = ((data & 0x80) >> 0x7);
-					triangle.linear_cnt  =  (data & 0x7F);
+					triangle.controlFlag = ((data & 0x80) >> 0x7);
+					triangle.linear      =  (data & 0x7F);
 				break;
 
 				case TRIANGLE_UNUSED:
@@ -174,14 +179,42 @@ void writeMemory(unsigned short addr, unsigned char data) {
 
 				case TRIANGLE_TMR_HIGH:
 					triangle.timer      = ((triangle.timer & 0xFF) | ((data & 0x7) << 8));
-					triangle.len_cnt    = square_getLenghtCnt(((data & 0xF8) >> 3)); 
+					triangle.len_cnt    = getLengthCnt(((data & 0xF8) >> 3)); 
 					triangle_freq_output();
+					triangle.linear_cnt = triangle.linear;
+					triangle.haltFlag   = 1;
 				break;
 			}
 		}
 
 		if ((addr >= 0x400C) && (addr <= 0x400F)) {
-		//	printf("Noise\n");
+			switch (addr) {
+				case NOISE_ENV:
+					/* loop env/disable length */
+					noise.env.loop_flag             = ((data & 0x20) >> 0x5);
+					/* envelop decay flag */
+					noise.env.c_flag       	        = ((data & 0x10) >> 0x4);
+					/* Set Volume */
+					noise.env.volume                = (data & 0xF);
+				break;
+
+				case NOISE_UNUSED:
+
+				break;
+
+				case NOISE_L_PERIOD:
+					/* Loop Noise */
+					noise.mode                      = ((data & 0x80) >> 0x7);
+					/* Noise Period */
+					noise.timer                    = noise_lookup_tbl[(data & 0xF)];
+					noise_out_freq();
+				break;
+
+				case NOISE_LEN_CNT:
+					/* Load length counter from the lookup table */
+					noise.len_cnt                   = getLengthCnt((data & 0xF8) >> 0x3);
+				break;
+			}
 		}
 
 		if ((addr >= 0x4010) && (addr <= 0x4013)) {
@@ -200,7 +233,6 @@ void writeMemory(unsigned short addr, unsigned char data) {
 
 		/* Frame Counter, it drives the envelope, sweep and lenght count */
 		if (addr == FRAME_CNT_REG) {
-
 			apu.frame_cnt_mode   = ((data & 0x80) >> 0x7);
 			apu.irq_flag         = ((data & 0x40) >> 0x6);
 			apu.dmc_interrupt    = 0x0;
@@ -1942,27 +1974,31 @@ void NMI() {
 	tick_count += 7;
 }
 
+void not_imp() {
+	printf("opcode not implemented!\n");
+}
+
 void macgyver() { macgyver_var = 1; }
 
 void (*op[0x100])() = {
 																/* Set Function Pointer Vector */
 	/*       0          1      2       3      4         5        6       7     8      9        A     B       C           D         E       F    */
-			brk,    ora_indx, NULL,   NULL,  NULL,    ora_zp,  asl_zp,  NULL, php, ora_imm,  asl_a, NULL,   NULL,     ora_abso, asl_abso, NULL, // 0
-			bpl,    ora_indy, NULL,   NULL,  NULL,    ora_zpx, asl_zpx, NULL, clc, ora_absy, NULL,  NULL,   NULL,     ora_absx, asl_absx, NULL, // 1
-			jsr,    and_indx, NULL,   NULL,  bit_zp,  and_zp,  rol_zp,  NULL, plp, and_imm,  rol_a, NULL,   bit_abso, and_abso, rol_abso, NULL, // 2  
-			bmi,    and_indy, NULL,   NULL,  NULL,    and_zpx, rol_zpx, NULL, sec, and_absy, NULL,  NULL,   NULL,     and_absx, rol_absx, NULL, // 3
-		    rti,    eor_indx, NULL,   NULL,  NULL,    eor_zp,  lsr_zp,  NULL, pha, eor_imm,  lsr_a, NULL,   jmp_abso, eor_abso, lsr_abso, NULL, // 4
-			bvc,    eor_indy, NULL,   NULL,  NULL,    eor_zpx, lsr_zpx, NULL, cli, eor_absy, NULL,  NULL,   NULL,     eor_absx, lsr_absx, NULL, // 5
-			rts,    adc_indx, NULL,   NULL,  NULL,    adc_zp,  ror_zp,  NULL, pla, adc_imm,  ror_a, NULL,   jmp_ind,  adc_abso, ror_abso, NULL, // 6
-			bvs,    adc_indy, NULL,   NULL,  NULL,    adc_zpx, ror_zpx, NULL, sei, adc_absy, NULL,  NULL,   NULL,     adc_absx, ror_absx, NULL, // 7
-			NULL,   sta_indx, NULL,   NULL,  sty_zp,  sta_zp,  stx_zp,  NULL, dey, NULL,     txa,   NULL,   sty_abso, sta_abso, stx_abso, NULL, // 8
-			bcc,    sta_indy, NULL,   NULL,  sty_zpx, sta_zpx, stx_zpy, NULL, tya, sta_absy, txs,   NULL,   NULL,     sta_absx, NULL,     NULL, // 9
-			ldy_imm,lda_indx, ldx_imm,NULL,  ldy_zp,  lda_zp,  ldx_zp,  NULL, tay, lda_imm,  tax,   NULL,   ldy_abso, lda_abso, ldx_abso, NULL, // A
-			bcs,    lda_indy, NULL,   NULL,  ldy_zpx, lda_zpx, ldx_zpy, NULL, clv, lda_absy, tsx,   NULL,   ldy_absx, lda_absx, ldx_absy, NULL, // B
-			cpy_imm,cmp_indx, NULL,   NULL,  cpy_zp,  cmp_zp,  dec_zp,  NULL, iny, cmp_imm,  dex,   NULL,   cpy_abso, cmp_abso, dec_abso, NULL, // C
-			bne,    cmp_indy, NULL,   NULL,  NULL,    cmp_zpx, dec_zpx, NULL, cld, cmp_absy, NULL,  NULL,   NULL,     cmp_absx, dec_absx, NULL, // D
-			cpx_imm,sbc_indx, NULL,   NULL,  cpx_zp,  sbc_zp,  inc_zp,  NULL, inx, sbc_imm,  nop,   sbc_imm,cpx_abso, sbc_abso, inc_abso, NULL, // E
-			beq,    sbc_indy, NULL,   NULL,  NULL,    sbc_zpx, inc_zpx, NULL, sed, sbc_absy, nop,   NULL,   NULL,     sbc_absx, inc_absx, macgyver};// F 
+			brk,    ora_indx, not_imp,   not_imp,  not_imp,    ora_zp,  asl_zp,  not_imp, php, ora_imm,  asl_a, not_imp,   not_imp,     ora_abso, asl_abso, not_imp, // 0
+			bpl,    ora_indy, not_imp,   not_imp,  not_imp,    ora_zpx, asl_zpx, not_imp, clc, ora_absy, not_imp,  not_imp,   not_imp,     ora_absx, asl_absx, not_imp, // 1
+			jsr,    and_indx, not_imp,   not_imp,  bit_zp,  and_zp,  rol_zp,  not_imp, plp, and_imm,  rol_a, not_imp,   bit_abso, and_abso, rol_abso, not_imp, // 2  
+			bmi,    and_indy, not_imp,   not_imp,  not_imp,    and_zpx, rol_zpx, not_imp, sec, and_absy, not_imp,  not_imp,   not_imp,     and_absx, rol_absx, not_imp, // 3
+		    rti,    eor_indx, not_imp,   not_imp,  not_imp,    eor_zp,  lsr_zp,  not_imp, pha, eor_imm,  lsr_a, not_imp,   jmp_abso, eor_abso, lsr_abso, not_imp, // 4
+			bvc,    eor_indy, not_imp,   not_imp,  not_imp,    eor_zpx, lsr_zpx, not_imp, cli, eor_absy, not_imp,  not_imp,   not_imp,     eor_absx, lsr_absx, not_imp, // 5
+			rts,    adc_indx, not_imp,   not_imp,  not_imp,    adc_zp,  ror_zp,  not_imp, pla, adc_imm,  ror_a, not_imp,   jmp_ind,  adc_abso, ror_abso, not_imp, // 6
+			bvs,    adc_indy, not_imp,   not_imp,  not_imp,    adc_zpx, ror_zpx, not_imp, sei, adc_absy, not_imp,  not_imp,   not_imp,     adc_absx, ror_absx, not_imp, // 7
+			not_imp,   sta_indx, not_imp,   not_imp,  sty_zp,  sta_zp,  stx_zp,  not_imp, dey, not_imp,     txa,   not_imp,   sty_abso, sta_abso, stx_abso, not_imp, // 8
+			bcc,    sta_indy, not_imp,   not_imp,  sty_zpx, sta_zpx, stx_zpy, not_imp, tya, sta_absy, txs,   not_imp,   not_imp,     sta_absx, not_imp,     not_imp, // 9
+			ldy_imm,lda_indx, ldx_imm,not_imp,  ldy_zp,  lda_zp,  ldx_zp,  not_imp, tay, lda_imm,  tax,   not_imp,   ldy_abso, lda_abso, ldx_abso, not_imp, // A
+			bcs,    lda_indy, not_imp,   not_imp,  ldy_zpx, lda_zpx, ldx_zpy, not_imp, clv, lda_absy, tsx,   not_imp,   ldy_absx, lda_absx, ldx_absy, not_imp, // B
+			cpy_imm,cmp_indx, not_imp,   not_imp,  cpy_zp,  cmp_zp,  dec_zp,  not_imp, iny, cmp_imm,  dex,   not_imp,   cpy_abso, cmp_abso, dec_abso, not_imp, // C
+			bne,    cmp_indy, not_imp,   not_imp,  not_imp,    cmp_zpx, dec_zpx, not_imp, cld, cmp_absy, not_imp,  not_imp,   not_imp,     cmp_absx, dec_absx, not_imp, // D
+			cpx_imm,sbc_indx, not_imp,   not_imp,  cpx_zp,  sbc_zp,  inc_zp,  not_imp, inx, sbc_imm,  nop,   sbc_imm,cpx_abso, sbc_abso, inc_abso, not_imp, // E
+			beq,    sbc_indy, not_imp,   not_imp,  not_imp,    sbc_zpx, inc_zpx, not_imp, sed, sbc_absy, nop,   not_imp,   not_imp,     sbc_absx, inc_absx, macgyver};// F 
 
 
 void CPU_reset() {
@@ -1972,8 +2008,11 @@ void CPU_reset() {
     S = 0xFF;
     P = 0x20;
 	PC = memory[0xFFFC] + (memory[0xFFFD] * 0x100);
-	tick_count = 0;
+	tick_count     = 0;
 	macgyver_var   = 0;
+
+	memset(&triangle, 0x0, sizeof(triangle_wave));
+	noise.lfsr = 1;
 }
 
 void CPU_execute(int cycles) {
@@ -1983,6 +2022,8 @@ void CPU_execute(int cycles) {
 		if (macgyver_var)
 			break;
 		
+		if (PC == 0)
+			exit(0);
 		opcode=memoryRead(PC++);
 
 		(*op[opcode])();

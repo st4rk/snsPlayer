@@ -9,6 +9,33 @@
 
 #include <SDL/SDL_mixer.h>
 #include <SDL/SDL.h>
+
+/**
+ * timer period lookup table to noise 
+ * this is the NTSC version
+ */
+static const unsigned int noise_lookup_tbl[] = {
+	4, 8, 16, 32, 64, 96, 128, 160,
+	202, 254, 380, 508, 762, 1016,
+	2034, 4068
+};
+
+static const float duty_freq[] = {
+	0.125f, 0.25f, 0.5f, 0.75f
+};
+
+static const unsigned char triangle_sequence[] = {
+	0xF, 0xE, 0xD, 0xC, 0xB, 0xA, 0x9, 0x8, 
+	0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0,
+	0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
+	0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF
+};
+
+#define INTERNAL_VOLUME     100
+
+#define SQUARE_WAVE_UNIT_1  0x0
+#define SQUARE_WAVE_UNIT_2  0x1 
+
 /* Square wave 1 */
 #define PULSE1_DUTY_ENV     0x4000
 #define PULSE1_SWEEP        0x4001
@@ -24,6 +51,11 @@
 #define TRIANGLE_UNUSED     0x4009
 #define TRIANGLE_TMR_LOW    0x400A
 #define TRIANGLE_TMR_HIGH   0x400B
+/* Noise wave */
+#define NOISE_ENV           0x400C
+#define NOISE_UNUSED        0x400D
+#define NOISE_L_PERIOD      0x400E
+#define NOISE_LEN_CNT       0x400F
 /* CPU Frequency */
 #define NTSC_CPU_CLOCK      1789773
 #define PAL_CPU_CLOK        1662607
@@ -32,7 +64,6 @@
 #define STATUS_REGISTER     0x4015
 /* Frame Counter */
 #define FRAME_CNT_REG       0x4017
-
 
 typedef struct sweep {
 	unsigned char enable;
@@ -73,17 +104,24 @@ typedef struct square_wave {
 typedef struct triangle_wave {
 	/* 11 Bit Timer used by triangle wave */
 	/* It's the wavelenght */
-	unsigned short timer;
+	unsigned int timer;
+	unsigned int tmr_cnt;
 
 	/* Length counter */
 	unsigned char len_cnt;
 
 	/* Length Counter halt / linear 
 	   counter control */
-	unsigned char halt_linear;
+	unsigned char controlFlag;
 
 	/* Linear Counter */
+	unsigned char linear;
 	unsigned char linear_cnt;
+	unsigned char haltFlag;
+
+	/* triangle sequencer */
+	unsigned char triSequence;
+	unsigned char seqValue;
 
 	/* Output frequency */
 	unsigned int out_freq;
@@ -92,6 +130,23 @@ typedef struct triangle_wave {
 	unsigned char step;
 	unsigned char cnt;
 } triangle_wave;
+
+typedef struct noise_wave {
+	/* noise timer */
+	unsigned int timer;
+	/* noise timer cnt */
+	unsigned int tmr_cnt;
+	/* mode flag */
+	unsigned char mode;
+	/* Length Coutner */
+	unsigned int len_cnt;
+	/* out frequency */
+	unsigned int out_freq;
+	/* lfsr */
+	unsigned short lfsr;
+
+	envelope env; 
+} noise_wave;
 
 typedef struct apu_status {
 	unsigned char dmc_flag;
@@ -110,31 +165,33 @@ typedef struct apu_status {
 
 extern square_wave   squareList[2];
 extern triangle_wave triangle;
+extern noise_wave    noise;
 extern apu_status    apu;
-/* Square Wave 1 */
-extern void square1_envelope();
-extern void square1_sweep();
-extern void square1_timer();
-extern void square1_len_cnt();
-extern void square1_freq_output();
-extern short square1_sample();
-
-/* Square Wave 2 */
-extern void square2_envelope();
-extern void square2_sweep();
-extern void square2_len_cnt();
-extern void square2_freq_output();
-extern short square2_sample();
+/* Square Wave */
+extern void square_envelope(unsigned char unit);
+extern void square_sweep(unsigned char unit);
+extern void square_timer(unsigned char unit);
+extern void square_len_cnt(unsigned char unit);
+extern void square_freq_output(unsigned char unit);
+extern short square_sample(unsigned char unit);
 
 /* Triangle Wave */
 extern void triangle_freq_output();
 extern void triangle_len_cnt();
 extern void triangle_linear_cnt();
 extern void triangle_step();
+extern void triangle_timer();
+
+extern void noise_len_cnt();
+extern void noise_envelope();
+extern void noise_out_freq();
+extern void noise_timer();
+extern void noise_lfsr();
+extern void noise_out_freq();
 
 /* SDL and APU Stuff */
 /* APU Lenght Counter table */
-extern unsigned char square_getLenghtCnt(unsigned char len);
+extern unsigned char getLengthCnt(unsigned char len);
 /* callback used to fill the audio buffer */
 extern void fill_audio(void *data, Uint8* stream, int len); 
 /* call used to initialize SDL Audio */

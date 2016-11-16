@@ -12,7 +12,7 @@
 #include "APU.h"
 
 /* system memory */
-extern unsigned char memory[65536];
+extern unsigned char memory[0xFFFFF];
 /* 6502 cpu registers  */
 extern unsigned char A;
 extern unsigned char P;

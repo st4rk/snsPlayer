@@ -8,14 +8,13 @@
 #include "nsf.h"
 #include "6502.h"
 
-
 /* List of NSF in folder */
 nsf_file fileList;
 
 /* Current track number */
 unsigned int trackNum = 0;
 
-/*
+/**
  * conio function, used to async keyboard input
  */
 int kbhit(void) {
@@ -109,6 +108,7 @@ void nsf_showInfo() {
 	printf("Musics:    %d\n", fileList.header.tSounds);
 	printf("Track:     %d\n", trackNum);
 }
+
 
 /*
  * This function initialize the 6502, clear the memory, verify if bank switching
@@ -206,7 +206,7 @@ void nsf_initTune(unsigned char *isBank, unsigned char *mem, unsigned char *x, u
 	 * banks 
 	 */
 	if (*isBank) {
-		memcpy(&mem[0x8000+(fileList.header.lAddrData & 0x0FFF)], &fileList.buffer[0x80], fileList.buffer_size);
+		memcpy(&mem[0x8000+(fileList.header.lAddrData & 0x0FFF)], &fileList.buffer[0x80], 0xFFFF);
 
 		for (i = 0; i < 8; i++) {
 			mem[0x5ff8 + i] = fileList.header.bankSwitchInitValues[i];
@@ -225,7 +225,6 @@ void nsf_initTune(unsigned char *isBank, unsigned char *mem, unsigned char *x, u
 	*pc = 0x5050;
 
 }
-
 
 /* 
  * This is the NSF main loop 
@@ -278,7 +277,6 @@ initAgain:
 
 		while (1) {
 			CPU_execute(114);
-
 			if (macgyver_var)
 				break;
 		}
@@ -291,10 +289,7 @@ initAgain:
 
 		/* APU Frame Counter Var */
 		int cnt = 0;
-		while (1) {			
-
-			/* Get System Tick */
-			tick = SDL_GetTicks();
+		while (1) {
 
 			/* 
 			 * verify if there is key into keyboard buffer;
@@ -303,14 +298,14 @@ initAgain:
 				unsigned char c = getchar();
 
 	 			switch (c) {
-	 				case 110:
+	 				case 'n':
 	 					if (trackNum < fileList.header.tSounds) {
 	 						trackNum++;
 	 						goto initAgain;
 	 					}
 	 				break;
 
-	 				case 98:
+	 				case 'b':
 	 					if (trackNum > 0) {
 	 						trackNum--;
 	 						goto initAgain;
@@ -324,8 +319,9 @@ initAgain:
 			CPU_execute(114);
 
 			/* Execute it @60 hz */
-			if (delay < tick) {
-				delay += (17);
+			if (delay < SDL_GetTicks()) {
+				delay = SDL_GetTicks() + 1000/60;
+
 
 				/* macgyver used to see if the jsr happened */
 				if (macgyver_var) {
@@ -336,50 +332,31 @@ initAgain:
 				/* APU Frame Counter */
 				switch (cnt) {
 					case 0:
-						square1_envelope();
-						square2_envelope();
+					case 2:
+						square_envelope(SQUARE_WAVE_UNIT_1);
+						square_envelope(SQUARE_WAVE_UNIT_2);
+						noise_envelope();
 						triangle_linear_cnt();
 					break;
 
 					case 1:
-						square1_envelope();
-						square2_envelope();
-						square1_len_cnt();
-						square2_len_cnt();
-						square1_sweep();
-						square2_sweep();
-
-						triangle_len_cnt();
-						triangle_linear_cnt();
-					break;
-
-					case 2:
-						square1_envelope();
-						square2_envelope();
-						triangle_linear_cnt();
-					break;
-
 					case 3:
-						square1_envelope();
-						square2_envelope();
-						square1_len_cnt();
-						square2_len_cnt();
-						square1_sweep();
-						square2_sweep();
-
-
+						square_envelope(SQUARE_WAVE_UNIT_1);
+						square_envelope(SQUARE_WAVE_UNIT_2);
+						square_len_cnt(SQUARE_WAVE_UNIT_1);
+						square_len_cnt(SQUARE_WAVE_UNIT_2);
+						square_sweep(SQUARE_WAVE_UNIT_1);
+						square_sweep(SQUARE_WAVE_UNIT_2);
+						noise_len_cnt();
+						noise_envelope();
 						triangle_len_cnt();
 						triangle_linear_cnt();
-					break;
-
-					default:
-
 					break;
 				}
 
 				/* check the frame count */
 				cnt > 4 ? cnt = 0 : cnt++;
-			}
+			} 
 		}
 		
 		/* Clear memory */	
