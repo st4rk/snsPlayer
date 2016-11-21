@@ -19,24 +19,7 @@ apu_status  apu;
 unsigned int square_sample_cnt[] = {0, 0};
 unsigned int triangle_sample_cnt = 0;
 unsigned int noise_sample_cnt    = 0;
-
-/*
- * This function is the Audio Call back
- * where our samples will be play
- */
-void fill_audio(void *data, Uint8 *stream, int len) {
-	short *buff;
-
-	buff = (short*)stream;
-
-	len /= 2;
-
-	for (int i = 0; i < len; i += 2) {
-		buff[i]   = square_mix();
-		buff[i+1] = buff[i];
-	}
-
-}
+short samples[MAX_SAMPLES];
 
 
 /*
@@ -49,9 +32,12 @@ void open_audio() {
 	as.format   = AUDIO_S16SYS;
 	as.channels = 2;
 	as.samples  = 256;
-	as.callback = fill_audio;
+	as.callback = NULL;
 
-	SDL_OpenAudio(&as, NULL);
+	if (SDL_OpenAudio(&as, NULL) < 0) {
+		printf("Error on SDL_OpenAudio\n");
+		exit(0);
+	}
 	SDL_PauseAudio(0);
 }
 
@@ -63,23 +49,6 @@ void close_audio() {
 	SDL_Quit();
 }
 
-/**
- * Square Wave Samples
- */
-short square_sample(unsigned char unit) {
-	if (squareList[unit].out_freq > 0) {
-		square_sample_cnt[unit]++;
-
-		if (square_sample_cnt[unit] >= squareList[unit].out_freq)
-			square_sample_cnt[unit] = 0;
-
-		if (square_sample_cnt[unit] < (squareList[unit].out_freq * duty_freq[squareList[unit].duty]))
-			return (squareList[unit].env.volume);
-	
-		return  -(squareList[unit].env.volume);
-	}
-	return 0;
-}
 
 /**
  * Control the wave amplitude 
@@ -184,11 +153,32 @@ void square_len_cnt(unsigned char unit) {
 		if (squareList[unit].len_cnt > 0) {
 			squareList[unit].len_cnt--;
 		} else {
-			squareList[unit].env.volume = 0;
+			squareList[unit].len_cnt = 0;
 		}
 
 	}
 }
+
+/**
+ * Square Wave Samples
+ */
+short square_sample(unsigned char unit) {
+	square_sweep(unit);
+
+	if (squareList[unit].out_freq && squareList[unit].timer) {
+		square_sample_cnt[unit]++;
+
+		if (square_sample_cnt[unit] >= squareList[unit].out_freq)
+			square_sample_cnt[unit] = square_sample_cnt[unit] - squareList[unit].out_freq;
+
+		if (square_sample_cnt[unit] < (squareList[unit].out_freq * duty_freq[squareList[unit].duty]))
+			return (squareList[unit].env.volume);
+	
+		return  -(squareList[unit].env.volume);
+	}
+	return 0;
+}
+
 
 /* APU Lenght Count Table */
 unsigned char getLengthCnt(unsigned char len) {
@@ -332,61 +322,49 @@ unsigned char getLengthCnt(unsigned char len) {
  *  Triangle Wave Channel
  */
 void triangle_freq_output() {
-	if (triangle.timer == 0) {
-		triangle.timer = 408;2
-		
-	}
-	triangle.out_freq = (unsigned int)(NTSC_CPU_CLOCK / (32 * (triangle.timer + 1))); 
-	triangle.out_freq = (unsigned int)(44100/triangle.out_freq);
+	float out_freq = (NTSC_CPU_CLOCK / (32 * (triangle.timer + 1)));
+	out_freq = 44100.0f / out_freq;
 
+	triangle.out_freq = (unsigned int)(out_freq);
 }
 
 
 void triangle_len_cnt() {
-	/* If enable bit is set on status, force the length counter do 0 */
-	if (apu.triangle_flag == 0x0) {
-		/* When it reaches to 0, the sound of channel should be silenced */
-		triangle.len_cnt = 0;
-	} else {
-		/* Check if halt flag is not set and check if the len_cnt is not already 0 */
-		if (triangle.controlFlag == 0) {
-			if (triangle.len_cnt > 0) 
-				triangle.len_cnt--;
+
+	/* Check if halt flag is not set and check if the len_cnt is not already 0 */
+	if (!triangle.controlFlag) {
+		if (triangle.len_cnt > 0) {
+			triangle.len_cnt--;
+		} else {
+			triangle.len_cnt = 0;	
 		}
 	}
+
 }
 
 void triangle_linear_cnt() {
+
 	/* check if halt flag is enable */
 	if (triangle.haltFlag) {
-		if (triangle.linear_cnt <= 0) {
-			/** realod the linear counter */
-			triangle.linear_cnt = triangle.linear;
-		} else {
-			/** decrement linear counter */
-			triangle.linear_cnt--;
-		}
+		triangle.linear_cnt = triangle.linear;
+	} else {
+		if (triangle.linear_cnt > 0)
+			--triangle.linear_cnt;
 	}
 
 	/** if control flag is clear, clear halt flag */
 	if (!triangle.controlFlag) {
 		triangle.haltFlag = 0;
 	}
+
+
 }
-
-
-
 
 /**
  * triangle sequencer
  */
 void triangle_sequencer() {
-	if (triangle.triSequence > 31) {
-		triangle.triSequence = 1;
-		triangle.seqValue = triangle_sequence[1];
-	} else {
-		triangle.seqValue = triangle_sequence[triangle.triSequence++];
-	}
+	triangle.seqValue = triangle_sequence[triangle.triSequence++ & 31];
 }
 
 
@@ -394,37 +372,36 @@ void triangle_sequencer() {
  * triangle timer
  */
 void triangle_timer() {
-
-	if (triangle.tmr_cnt == 0) {
-		triangle.tmr_cnt = triangle.timer;
-		
-		if (triangle.len_cnt  && triangle.linear_cnt) {
+	if ((triangle.linear_cnt > 0) && (triangle.len_cnt > 0)) {
+		if (triangle.tmr_cnt) {
+			triangle.tmr_cnt--;
+		} else {
+			triangle.tmr_cnt = triangle.timer;
 			triangle_sequencer();
 		}
-	} else {
-		triangle.tmr_cnt--;
 	}
 }
 
 
 short triangle_samples() {
-
-	if (triangle.timer && triangle.len_cnt && triangle.linear_cnt) {
+	if ((triangle.len_cnt) && (triangle.linear_cnt)) {
 		triangle_sample_cnt++;
-
 
 		if (triangle_sample_cnt > triangle.out_freq) {
 			triangle_sample_cnt = triangle_sample_cnt - triangle.out_freq;
-			triangle_sequencer();
 		}
 
-		if (triangle_sample_cnt < triangle.out_freq) {
-			return (triangle.seqValue * 0x5);
+		triangle.oldOutput = triangle.seqValue;
+
+		if (triangle.timer < 2) {
+			triangle.oldOutput = triangle_sequence[7] * 2;
 		}
-		
+
+		return triangle.oldOutput * 2;
+	
 	}
 
-	return 0;
+	return triangle.oldOutput;
 }
 
 
@@ -437,19 +414,17 @@ short triangle_samples() {
  * Unit Length Counter
  */
 void noise_len_cnt() {
-	/* If enable bit is set on status, force the length counter do 0 */
-	if (apu.noise_flag == 0x0) {
-		noise.len_cnt = 0;
-		/* When it reaches to 0, the sound of channel should be silenced */
-		noise.env.volume = 0;
-	} else {
+
+	if (noise.env.loop_flag) {
 		/* Check if halt flag is not set and check if the len_cnt is not already 0 */
 		if (noise.len_cnt > 0){
 			noise.len_cnt--;
 		}  else  {
 			noise.len_cnt = 0;
+			noise.env.volume = 0;
 		}
-
+	} else {
+		noise.env.volume = 0;
 	}
 }
 
@@ -458,24 +433,8 @@ void noise_len_cnt() {
  * Control the wave amplitude 
  */
 void noise_envelope() {
-	/**
-	 * verify if decay flag is not set, if it's not, should decay the volume 
-	 */
-	if (!(noise.env.c_flag)) {
-		/**
-		 * The envelope starts with volume 15, and decrements every time the unit is clocked 
-		 */
-		if (noise.env.volume > 0) 
-			noise.env.volume--;
-		else {
-			/** 
-			 * Check if the envelope loop flag is enable, if it's, should to load
-			 * 0xF(15) to volume and count down again 
-			 */
-			if (noise.env.loop_flag == 1) 
-				noise.env.volume = 0xF;
-		}
-	}
+	if (noise.env.c_flag) 
+		noise.env.volume > 0 ? noise.env.volume-- : noise.env.loop_flag == 0 ? 15 : 0;
 }
 
 
@@ -484,6 +443,7 @@ void noise_envelope() {
  */
 void noise_lfsr() {
 	unsigned char mode = noise.mode == 0 ? 13 : 8;
+
 
 	unsigned short bit = (noise.lfsr >> 14) ^ (noise.lfsr >> mode);
 	bit = (bit | 0x4000);
@@ -507,7 +467,6 @@ void noise_timer() {
  * Calculate the output frequency
  */
 void noise_out_freq() {
-
 	noise.out_freq = (unsigned int)(NTSC_CPU_CLOCK /  (16 * noise.timer + 1)); 
 	noise.out_freq = (44100/noise.out_freq);
 }
@@ -517,33 +476,27 @@ void noise_out_freq() {
  * Square Wave Samples
  */
 short noise_samples() {
-	noise_envelope();
-	noise_lfsr();
-
-	if (noise.timer && noise.len_cnt) {
+	if (noise.len_cnt) {
 		noise_sample_cnt++;
 
-		if (noise_sample_cnt >= noise.out_freq) {
-			noise_sample_cnt = 0;
+		if (noise_sample_cnt > noise.out_freq) {
+			noise_sample_cnt -= noise.out_freq;
 		}
 
-		if (noise_sample_cnt < noise.out_freq) {
-			return (noise.env.volume * ((noise.lfsr & 1) * 0x2));
-		}
-		
-		return 0;
+		return (noise.env.volume * ((noise.lfsr & 1) * 5));
+	
 	}
 	return 0;
 }
 
-short square_mix() {
+short mix_channel() {
 	
-	float sound_mix = 0.0f;//(float)(square_sample(SQUARE_WAVE_UNIT_1) + square_sample(SQUARE_WAVE_UNIT_2));
-	sound_mix = 95.88f / (8128.0f / (sound_mix + 100.0f));
+	float sound_mix = 0.00752f * (float)(square_sample(SQUARE_WAVE_UNIT_1) + square_sample(SQUARE_WAVE_UNIT_2));
 
-	float tnd_out = 159.79f / (1.0f / ((float)noise_samples()/12241.0f + (float)triangle_samples()/8700.0f) + 15.0f);
+//	float tnd_out = 159.79f / (1.0f / ((float)(triangle_samples()/8227.0f) + (float)noise_samples()/12241.0f) + 400.0f);
+// 0.00851f * (float)triangle_samples(); //
+	float tnd_out =  0.00851f * (float)triangle_samples() + 0.00494f * (float)noise_samples();
 	sound_mix += tnd_out;
-	
 
 	return (short)(sound_mix * 10000);
 }

@@ -5,7 +5,7 @@
 spc_700 spc;
 
 /* Internal Memory 64 KB */
-unsigned char spc_mem[0xFA00];
+unsigned char spc_mem[0xFFFF];
 
 /* Write 8 bits to memory */
 void spc_writeMemory(unsigned short addr, unsigned char data) {
@@ -77,7 +77,7 @@ void spc_writeMemory(unsigned short addr, unsigned char data) {
 			case 0xFD:
 
 			break;
-			
+
 			case 0xFE:
 
 			break;
@@ -701,7 +701,7 @@ void cmp() {
 
 	int temp = spc.A - EA;
 
-	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG()
+	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
@@ -714,7 +714,7 @@ void cmp_xy() {
 
 	int temp = X - Y;
 
-	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG()
+	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 
@@ -727,7 +727,7 @@ void cmp_dp() {
 
 	int temp = EA - data;
 
-	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG()
+	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
@@ -737,7 +737,7 @@ void cpx() {
 
 	int temp = spc.X - EA;
 
-	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG()
+	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 
@@ -748,7 +748,7 @@ void cpy() {
 
 	int temp = spc.Y - EA;
 
-	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG()
+	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 
@@ -879,7 +879,7 @@ void ror_mem() {
 
 void incw() {
 	unsigned short data = (spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
-	
+
 	data++;
 
 	spc_writeMemory(EA, data & 0xFF);
@@ -891,24 +891,24 @@ void incw() {
 
 void decw() {
 	unsigned short data = (spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
-	
+
 	data--;
 
 	spc_writeMemory(EA, data & 0xFF);
 	spc_writeMemory(EA+1, (data >> 8) & 0xFF);
-	
+
 	if (data) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void addw() {
 	unsigned short data = (spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
-	unsigned short YA   = A | (Y << 8);
+	unsigned short YA   = spc.A | (spc.Y << 8);
 	unsigned int result = YA + data;
-	
+
 	if ((~(YA ^ data)) & (YA ^ result) & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
 	if ((YA ^ data ^ result) & 0x1000) SET_FLAG (spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-	if (result > 0xFFFF) 
+	if (result > 0xFFFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 
 	spc.Y = (YA >> 0x8) & 0xFF;
 	spc.A = (YA & 0xFF);
@@ -919,12 +919,12 @@ void addw() {
 
 void subw() {
 	unsigned short data = (spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
-	unsigned short YA   = A | (Y << 8);
+	unsigned short YA   = spc.A | (spc.Y << 8);
 	unsigned int result = YA - data;
-	
+
 	if ((~(YA ^ data)) & (YA ^ result) & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
 	if ((YA ^ data ^ result) & 0x1000) SET_FLAG (spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-	if (result > 0xFFFF) 
+	if (result > 0xFFFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 
 	spc.Y = (YA >> 0x8) & 0xFF;
 	spc.A = (YA & 0xFF);
@@ -935,13 +935,329 @@ void subw() {
 
 void cmpw() {
 	unsigned short data = (spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
-	unsigned short YA   = A | (Y << 8);
+	unsigned short YA   = spc.A | (spc.Y << 8);
 
-	YA = YA + data;
+	YA = YA - data;
+
+	spc.Y = (YA >> 0x8) & 0xFF;
+	spc.A = (YA & 0xFF);
 
 	if (YA) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (YA & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
+
+void bbc(unsigned char bit_mask) {
+	unsigned char dp = spc_readMemory(EA);
+
+	if (!(dp & bit_mask)) {
+		 unsigned char rel = spc_readMemory(PC++);
+		 PC += rel;
+		 spc.cycles += 2;
+	}
+}
+
+void bbs(unsigned char bit_mask) {
+	unsigned char dp = spc_readMemory(EA);
+
+	if (dp & bitmask) {
+		unsigned char rel = spc_readMemory(PC++);
+		PC += rel;
+		spc.cycles += 2;
+	}
+}
+
+void bcc() {
+	if (!(spc.PSW & PSW_FLAG_CARRY)) {
+		unsigned char rel = spc_readMemory(PC++);
+		PC += rel;
+		spc.cycles += 2;
+	}
+}
+
+void bcs() {
+	if (spc.PSW & PSW_FLAG_CARRY) {
+		unsigned char rel = spc_readMemory(PC++);
+		PC += rel;
+		spc.cycles += 2;
+	}
+}
+
+void beq() {
+	if (spc.PSW & PSW_FLAG_ZERO) {
+		unsigned char rel = spc_readMemory(PC++);
+		PC += rel;
+		spc.cycles += 2;
+	}
+}
+
+void bmi() {
+	if (spc.PSW & PSW_FLAG_NEGATIVE) {
+		unsigned char rel = spc_readMemory(PC++);
+		PC += rel;
+		spc.cycles += 2;
+	}
+}
+
+void bne() {
+	if (!(spc.PSW & PSW_FLAG_ZERO)) {
+		unsigned char rel = spc_readMemory(PC++);
+		PC += rel;
+		spc.cycles += 2;
+	}
+}
+
+void bpl() {
+	if (!(spc.PSW & PSW_FLAG_NEGATIVE)) {
+		unsigned char rel = spc_readMemory(PC++);
+		PC += rel;
+		spc.cycles += 2;
+	}
+}
+
+void bvc() {
+	if (!(spc.PSW & PSW_FLAG_OVERFLOW)) {
+		unsigned char rel = spc_readMemory(PC++);
+		PC += rel;
+		spc.cycles += 2;
+	}
+}
+
+void bvs() {
+	if (spc.PSW & PSW_FLAG_OVERFLOW) {
+		unsigned char rel = spc_readMemory(PC++);
+		PC += rel;
+		spc.cycles += 2;
+	}
+}
+
+void bra() {
+		unsigned char rel = spc_readMemory(PC++);
+		PC += rel;
+}
+
+void brk() {
+	 spc.PC++;
+	 push((spc.PC & 0xFF00) >> 8);
+ 	 push(spc.PC & 0xFF);
+	 push(spc.PSW);
+	 spc.PC = 0xFFDE;
+	 SET_FLAG(spc.PSW, PSW_FLAG_BREAK);
+	 CLEAR_FLAG(spc.PSW, PSW_FLAG_INTENABLE);
+}
+
+void call() {
+	push((spc.PC & 0xFF00) >> 8);
+	push(spc.PC & 0xFF);
+	spc.PC = spc_readMemory(EA);
+}
+
+void cbne() {
+	cmp();
+	bne();
+}
+
+void clr1(unsigned char bit_mask) {
+	spc_writeMemory(EA, (spc_readMemory(EA) & ~bit_mask));
+}
+
+void clrc() {
+	CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+}
+
+void clrp() {
+	CLEAR_FLAG(spc.PSW, PSW_FLAG_DIRECTPAGE);
+}
+
+void clrv() {
+	CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+	CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
+}
+
+void di() {
+	CLEAR_FLAG(spc.PSW, PSW_FLAG_INTENABLE);
+}
+
+void ei() {
+	SET_FLAG(spc.PSW, PSW_FLAG_INTENABLE);
+}
+
+void DIV() {
+	unsigned short YA = spc.A | (spc.Y << 8);
+
+	if ((YA / spc.X) > 0xFF) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+	if ((spc.X & 0xF) <= (spc.Y & 0xF)) SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
+
+	spc.A = YA / spc.X;
+	spc.Y = YA % spc.X;
+
+	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
+	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
+}
+
+void jmp_1f() {
+	unsigned short data = spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
+	PC = EA;
+}
+
+void jmp_3f() {
+	PC = spc_readMemory(EA);
+}
+
+void notc() {
+	spc.PSW = spc.PSW ^ PSW_FLAG_CARRY;
+}
+
+void ret() {
+	spc.PC = pop();
+	spc.PC = spc.PC | (pop() << 8);
+}
+
+void ret1() {
+	spc.PSW = pop();
+	spc.PC = pop();
+	spc.PC = spc.PC | (pop() << 8);
+}
+
+void set1(unsigned char bit_mask) {
+	spc_writeMemory(EA, (spc_readMemory(EA) | bit_mask));
+}
+
+void setPSW(unsigned char flag) {
+	SET_FLAG(spc.PSW, flag);
+}
+
+void tcall(unsigned short addr) {
+	push((spc.PC & 0xFF00) >> 8);
+	push(spc.PC & 0xFF);
+	spc.PC = addr;
+}
+
+void tclr1() {
+	unsigned char data = spc_readMemory(EA);
+
+	data = data &~ spc.A;
+}
+
+void tset1() {
+	unsigned char data = spc_readMemory(EA);
+	data = data | spc.A;
+
+}
+
+void mul() {
+	unsigned short YA = spc.Y * spc.A;
+
+	spc.Y = (YA & 0xFF00) >> 8;
+	spc.A = (YA & 0x00FF);
+
+	if (spc.Y) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
+	if (spc.Y & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
+}
+
+void and1_not() {
+	unsigned char data = spc_readMemory(EA & 0x1FFF);
+
+	if (data & (1 << (EA >> 13))) {
+		CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	}
+}
+
+void and1() {
+	unsigned char data = spc_readMemory(EA & 0x1FFF);
+
+	if (!(data & (1 << (EA >> 13))) {
+		CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	}
+}
+
+void eor1() {
+	unsigned char data = spc_readMemory(EA & 0x1FFF);
+
+	if (data & (1 << (EA >> 13))) {
+		spc.PSW = spc.PSW ^ PSW_FLAG_CARRY;
+	} 
+}
+
+void mov1_c() {
+	unsigned char data = spc_readMemory(EA & 0x1FFF);
+
+	if (data & (1 << (EA >> 13))) {
+		spc.PSW = spc.PSW & ~PSW_FLAG_CARRY;
+	} else {
+		spc.PSW = spc.PSW | PSW_FLAG_CARRY;
+	} 
+}
+
+void mov1() {
+	unsigned char data = spc_readMemory(EA & 0x1FFF);
+
+	if (spc.PSW & PSW_FLAG_CARRY) {
+		data = data | (1 << (EA >> 13));
+	} else {
+		data = data & ~(1 << (EA >> 13));
+	}
+
+	spc_writeMemory(EA & 0x1FFF, data);
+}
+
+void not1() {
+	unsigned char data = spc_readMemory(EA & 0x1FFF);
+
+	if (data & (1 << (EA >> 13))) {
+		data = data & ~(1 << (EA >> 13));
+	} else {
+		data = data | (1 << (EA >> 13));
+	}
+
+	spc_writeMemory(EA & 0x1FFF, data);
+}
+
+void or1_not() {
+	unsigned char data = spc_readMemory(EA & 0x1FFF);
+
+	if (!(data & (1 << (EA >> 13)))) {
+		SET_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	}
+}
+
+void or1() {
+	unsigned char data = spc_readMemory(EA & 0x1FFF);
+
+	if ((data & (1 << (EA >> 13))) {
+		SET_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	}
+}
+
+void daa() {
+	if ((spc.PSW & PSW_FLAG_CARRY) || (spc.A > 0x99)) {
+		SET_FLAG(spc.PSW, PSW_FLAG_CARRY);
+		spc.A += 0x60;
+	}
+
+	if ((PSW & PSW_FLAG_HALFCARRY) || (spc.A > 0x9)) {
+		spc.A += 0x6;
+	}
+
+	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
+	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
+
+}
+
+void das() {
+	if ((spc.PSW & PSW_FLAG_CARRY) || (spc.A > 0x99)) {
+		SET_FLAG(spc.PSW, PSW_FLAG_CARRY);
+		spc.A -= 0x60;
+	}
+
+	if ((PSW & PSW_FLAG_HALFCARRY) || (spc.A > 0x9)) {
+		spc.A -= 0x6;
+	}
+
+	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
+	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
+
+}
+
 
 /* SPC Init CPU */
 void spc_initCPU() {
@@ -991,7 +1307,7 @@ void spc_mainLoop() {
 			mov_ay();
 			spc.cycles += 2;
 		break;
- 
+
 		case 0xFD: // MOV Y, A
 			mov_ya();
 			spc.cycles += 2;
@@ -1179,6 +1495,18 @@ void spc_mainLoop() {
 			spc.cycles += 4;
 		break;
 
+		case 0xAA:
+			absolute();
+			mov1_c();
+			spc.cycles += 4;
+		break;
+
+		case 0xCA:
+			absolute();
+			mov1();
+			sps.cycles += 6;
+		break;
+
 		case 0xC6: // MOV (X), A
 			indirect();
 			spc_writeMemory(EA, spc.A);
@@ -1279,7 +1607,7 @@ void spc_mainLoop() {
 			adc();
 			spc.cycles += 5;
 		break;
- 
+
 		case 0x96: // ADC A, !aaaa+y
 			absolute_indexedY();
 			adc();
@@ -1326,60 +1654,60 @@ void spc_mainLoop() {
 			sbc();
 			spc.cycles += 3;
 		break;
-		
+
 		case 0xA4: // SBC A, aa
 			directPage();
 			sbc();
 			spc.cycles += 3;
 		break;
-		
+
 		case 0xB4: // SBC A, aa+x
 			directPage_indexedX();
 			sbc();
 			spc.cycles += 4;
 		break;
-		
+
 		case 0xA5: // SBC A, !aaaa
 			absolute();
 			sbc();
 			spc.cycles += 4;
 		break;
-		
+
 		case 0xB5: // SBC A, !aaaa+x
 			absolute_indexedX();
 			sbc();
 			spc.cycles += 5;
 		break;
-		
+
 		case 0xB6: // SBC A, !aaaa+y
 			absolute_indexedY();
 			sbc();
 			spc.cycles += 5;
 		break;
-			
+
 		case 0xA7: // SBC A, [aa+x]
 			indirect_indexedX();
 			sbc();
 			spc.cycles += 6;
 		break;
-		
+
 		case 0xB7: // SBC A, [aa]+y
 			indirect_indexedY_indirect();
 			sbc();
 			spc.cycles += 6;
 		break;
-		
+
 		case 0xB9: // SBC [X], [Y]
 			sbc_xy();
 			spc.cycles += 5;
 		break;
-		
+
 		case 0xA9: // SBC aa, aa
 			directPage();
 			sbc_dp();
 			spc.cycles += 6;
 		break;
-		
+
 		case 0xB8: // SBC aa, #nn
 			immediate();
 			sbc_imm();
@@ -1391,125 +1719,125 @@ void spc_mainLoop() {
 			cmp();
 			spc.cycles += 2;
 		break;
-		
+
 
 		case 0x66:
 			indirect();
 			cmp();
 			spc.cycles += 3;
 		break;
-		
+
 
 		case 0x64:
 			directPage();
 			cmp();
 			spc.cycles += 3;
 		break;
-		
+
 
 		case 0x74:
 			directPage_indexedX();
 			cmp();
 			spc.cycles += 4;
 		break;
-		
+
 
 		case 0x65:
 			absolute();
 			cmp();
 			spc.cycles += 4;
 		break;
-		
+
 
 		case 0x75:
 			absolute_indexedX();
 			cmp();
 			spc.cycles += 5;
 		break;
-		
+
 
 		case 0x76:
 			absolute_indexedY();
 			cmp();
 			spc.cycles += 5;
 		break;
-		
+
 
 		case 0x67:
 			indirect_indexedX();
 			sbc();
 			spc.cycles += 6;
 		break;
-		
+
 
 		case 0x77:
 			indirect_indexedY_indirect();
 			sbc();
 			spc.cycles += 6;
 		break;
-		
+
 
 		case 0x79:
 			cmp_xy();
 			spc.cycles += 5;
 		break;
-		
+
 
 		case 0x69:
 			directPage();
 			cmp_dp();
 			spc.cycles += 6;
 		break;
-		
+
 
 		case 0x78:
 			immediate();
 			cmp_dp();
 			spc.cycles += 5;
 		break;
-		
+
 
 		case 0xC8:
 			immediate();
 			cpx();
 			spc.cycles += 2;
 		break;
-		
+
 
 		case 0x3E:
 			directPage();
 			cpx();
 			spc.cycles += 3;
 		break;
-		
+
 
 		case 0x1E:
 			absolute();
 			cpx();
 			spc.cycles += 4;
 		break;
-		
+
 
 		case 0xAD:
 			immediate();
 			cpy();
 			spc.cycles += 2;
 		break;
-		
+
 
 		case 0x7E:
 			directPage();
 			cpy();
 			spc.cycles += 3;
 		break;
-		
+
 
 		case 0x5E:
 			absolute();
 			cpy();
 			spc.cycles += 4;
 		break;
-		
+
 
 		case 0x28:
 			immediate();
@@ -1563,6 +1891,18 @@ void spc_mainLoop() {
 			indirect_indexedY_indirect();
 			and();
 			spc.cycles += 6;
+		break;
+
+		case 0x6A:
+			absolute();
+			and1_not();
+			spc.cycles += 4;
+		break;
+
+		case 0x4A:
+			absolute();
+			and1();
+			spc.cycles += 4;
 		break;
 
 		case 0x39:
@@ -1724,6 +2064,12 @@ void spc_mainLoop() {
 			spc.cycles += 5;
 		break;
 
+		case 0x8A:
+			absolute();
+			eor1();
+			spc.cycles += 5;
+		break;
+
 		case 0xBC:
 			inc_reg(&spc.A);
 			spc.cycles += 2;
@@ -1823,19 +2169,19 @@ void spc_mainLoop() {
 		case 0x4B:
 			directPage();
 			lsr_mem();
-			spc.cycles += 4;			
+			spc.cycles += 4;
 		break;
 
 		case 0x5B:
 			directPage_indexedX();
 			lsr_mem();
-			spc.cycles += 5;			
+			spc.cycles += 5;
 		break;
 
 		case 0x4C:
 			absolute();
 			lsr_mem();
-			spc.cycles += 5;			
+			spc.cycles += 5;
 		break;
 
 		/* ROL */
@@ -1923,9 +2269,494 @@ void spc_mainLoop() {
 			spc.cycles += 4;
 		break;
 
+		case 0x13:
+			directPage();
+			bbc(0x1);
+			spc.cycles += 5;
+		break;
+
+		case 0x33:
+			directPage();
+			bbc(0x2);
+			spc.cycles += 5;
+		break;
+
+		case 0x53:
+			directPage();
+			bbc(0x4);
+			spc.cycles += 5;
+		break;
+
+		case 0x73:
+			directPage();
+			bbc(0x8);
+			spc.cycles += 5;
+		break;
+
+		case 0x93:
+			directPage();
+			bbc(0x10);
+			spc.cycles += 5;
+		break;
+
+		case 0xB3:
+			directPage();
+			bbc(0x20);
+			spc.cycles += 5;
+		break;
+
+		case 0xD3:
+			directPage();
+			bbc(0x40);
+			spc.cycles += 5;
+		break;
+
+		case 0xF3:
+			directPage();
+			bbc(0x80);
+			spc.cycles += 5;
+		break;
+
+		case 0x03:
+			directPage();
+			bbs(0x1);
+			spc.cycles += 5;
+		break;
+
+		case 0x23:
+			directPage();
+			bbs(0x2);
+			spc.cycles += 5;
+		break;
+
+		case 0x43:
+			directPage();
+			bbs(0x4);
+			spc.cycles += 5;
+		break;
+
+		case 0x63:
+			directPage();
+			bbs(0x8);
+			spc.cycles += 5;
+		break;
+
+		case 0x83:
+			directPage();
+			bbs(0x10);
+			spc.cycles += 5;
+		break;
+
+		case 0xA3:
+			directPage();
+			bbs(0x20);
+			spc.cycles += 5;
+		break;
+
+		case 0xC3:
+			directPage();
+			bbs(0x40);
+			spc.cycles += 5;
+		break;
+
+		case 0xE3:
+			directPage();
+			bbs(0x80);
+			spc.cycles += 5;
+		break;
+
+		case 0x90:
+			bcc();
+			spc.cycles += 2;
+		break;
+
+		case 0xB0:
+			bcs();
+			spc.cycles += 2;
+		break;
+
+		case 0xF0:
+			beq();
+			spc.cycles += 2;
+		break;
+
+		case 0x30:
+			bmi();
+			spc.cycles += 2;
+		break;
+
+		case 0xD0:
+			bne();
+			spc.cycles += 2;
+		break;
+
+		case 0x10:
+			bpl();
+			spc.cycles += 2;
+		break;
+
+		case 0x50:
+			bvc();
+			spc.cycles += 2;
+		break;
+
+		case 0x70:
+			bvs();
+			spc.cycles += 2;
+		break;
+
+		case 0x2F:
+			bra();
+			spc.cycles += 4;
+		break;
+
+		case 0x0F:
+			brk();
+			spc.cycles += 8;
+		break;
+
+		case 0x3F:
+		  	absolute();
+			call();
+			spc.cycles += 8;
+		break;
+
+		case 0xDE:
+			directPage_indexedX();
+			cbne();
+			spc.cycles += 6;
+		break;
+
+		case 0x2E:
+			directPage();
+			cbne();
+			spc.cycles += 5;
+		break;
+
+		case 0x12:
+			directPage();
+			clr1(0x1);
+			spc.cycles += 4;
+		break;
+
+		case 0x32:
+			directPage();
+			clr1(0x2);
+			spc.cycles += 4;
+		break;
+
+		case 0x52:
+			directPage();
+			clr1(0x4);
+			spc.cycles += 4;
+		break;
+
+		case 0x72:
+			directPage();
+			clr1(0x8);
+			spc.cycles += 4;
+		break;
+
+		case 0x92:
+			directPage();
+			clr1(0x10);
+			spc.cycles += 4;
+		break;
+
+		case 0xB2:
+			directPage();
+			clr1(0x20);
+			spc.cycles += 4;
+		break;
+
+		case 0xD2:
+			directPage();
+			clr1(0x40);
+			spc.cycles += 4;
+		break;
+
+		case 0xF2:
+			directPage();
+			clr1(0x80);
+			spc.cycles += 4;
+		break;
+
+		case 0x60:
+			clrc();
+			spc.cycles += 2;
+		break;
+
+		case 0x20:
+			clrp();
+			spc.cycles += 2;
+		break;
+
+		case 0xE0:
+			clrv();
+			spc.cycles += 2;
+		break;
+
+		case 0xC0:
+			di();
+			spc.cycles += 3;
+		break;
+
+		case 0xA0:
+			ei();
+			spc.cycles += 3;
+		break;
+
+		case 0x9E:
+			DIV();
+			spc.cycles += 12;
+		break;
+
+		case 0x1F:
+			absolute_indexedX();
+			jmp_1f();
+			spc.cycles += 6;
+		break;
+
+		case 0x5F:
+			absolute();
+			jmp_3f();
+			spc.cycles += 3;
+		break;
+
+		case 0x00:
+			// NOP
+			spc.cycles += 2;
+		break;
+
+		case 0xED:
+			notc();
+			spc.cycles += 3;
+		break;
+
+		case 0x6F:
+			ret();
+			spc.cycles += 5;
+		break;
+
+		case 0x7F:
+			ret1();
+			spc.cycles += 6;
+		break;
+
+		case 0x02:
+			directPage();
+			set1(0x1);
+			spc.cycles += 4;
+		break;
+
+		case 0x22:
+			directPage();
+			set1(0x2);
+			spc.cycles += 4;
+		break;
+
+		case 0x42:
+			directPage();
+			set1(0x4);
+			spc.cycles += 4;
+		break;
+
+		case 0x62:
+			directPage();
+			set1(0x8);
+			spc.cycles += 4;
+		break;
+
+		case 0x82:
+			directPage();
+			set1(0x10);
+			spc.cycles += 4;
+		break;
+
+		case 0xA2:
+			directPage();
+			set1(0x20);
+			spc.cycles += 4;
+		break;
+
+		case 0xC2:
+			directPage();
+			set1(0x40);
+			spc.cycles += 4;
+		break;
+
+		case 0xE2:
+			directPage();
+			set1(0x80);
+			spc.cycles += 4;
+		break;
+
+		case 0x80:
+			setPSW(PSW_FLAG_CARRY);
+			spc.cycles += 2;
+		break;
+
+		case 0x40:
+		  setPSW(PSW_FLAG_DIRECTPAGE);
+			spc.cycles += 2;
+		break;
+
+		case 0xFF:
+			printf("SLEEP\n");
+			spc.cycles += 1;
+		break;
+
+		case 0xEF:
+			printf("STOP\n");
+			spc.cycles += 1;
+		break;
+
+		case 0x01:
+			tcall(0xFFDE);
+			spc.cycles += 8;
+		break;
+
+		case 0x11:
+			tcall(0xFFDC);
+			spc.cycles += 8;
+		break;
+
+		case 0x21:
+			tcall(0xFFDA);
+			spc.cycles += 8;
+		break;
+
+		case 0x31:
+			tcall(0xFFD8);
+			spc.cycles += 8;
+		break;
+
+		case 0x41:
+			tcall(0xFFD6);
+			spc.cycles += 8;
+		break;
+
+		case 0x51:
+			tcall(0xFFD4);
+			spc.cycles += 8;
+		break;
+
+		case 0x61:
+			tcall(0xFFD2);
+			spc.cycles += 8;
+		break;
+
+		case 0x71:
+			tcall(0xFFD0);
+			spc.cycles += 8;
+		break;
+
+		case 0x81:
+			tcall(0xFFCE);
+			spc.cycles += 8;
+		break;
+
+		case 0x91:
+			tcall(0xFFCC);
+			spc.cycles += 8;
+		break;
+
+
+		case 0xA1:
+			tcall(0xFFCA);
+			spc.cycles += 8;
+		break;
+
+		case 0xB1:
+			tcall(0xFFC8);
+			spc.cycles += 8;
+		break;
+
+		case 0xC1:
+			tcall(0xFFC6);
+			spc.cycles += 8;
+		break;
+
+		case 0xD1:
+			tcall(0xFFC4);
+			spc.cycles += 8;
+		break;
+
+		case 0xE1:
+			tcall(0xFFC2);
+			spc.cycles += 8;
+		break;
+
+		case 0xF1:
+			tcall(0xFFC0);
+			spc.cycles += 8;
+		break;
+
+		case 0x4E:
+		    absolute();
+			tclr1();
+			spc.cycles += 6;
+		break;
+
+		case 0x0E:
+			absolute();
+			tset1();
+			spc.cycles += 6;
+		break;
+
+		case 0x4F:
+			tcall(0xFF00 + spc_readMemory(PC++));
+			spc.cycles += 6;
+		break;
+
+		case 0xCF:
+			mul();
+			spc.cycles += 9;
+		break;
+
+		case 0xFE:
+			spc.Y--;
+			bne();
+			spc.cycles += 4;
+		break;
+
+		case 0x6E:
+			directPage();
+			spc_writeMemory(EA, spc_readMemory()--);
+			bne();
+			spc.cycles += 4;
+		break;
+
+		case 0xEA:
+			absolute();
+			not1();
+			spc.cycles += 5;
+		break;
+
+		case 0x2A:
+			absolute();
+			or1_not();
+			spc.cycles += 5;
+		break;
+
+		case 0x0A:
+			absolute();
+			or1();
+			spc.cycles += 5;
+		break;
+
+		case 0xDF:
+			daa();
+			spc.cycles += 3;
+		break;
+
+		case 0xBE:
+			das();
+			spc.cycles += 3;
+		break;
+
 		default:
 			printf("Opcode: 0x%X not implemented\n", opcode);
 		break;
 	}
 }
-

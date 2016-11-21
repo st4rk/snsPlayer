@@ -105,7 +105,7 @@ void nsf_showInfo() {
 	printf("Name:      %s\n", fileList.header.songName);
 	printf("Artist:    %s\n", fileList.header.artistName);
 	printf("Copyright: %s\n", fileList.header.copyright);
-	printf("Musics:    %d\n", fileList.header.tSounds);
+	printf("Tracks:    %d\n", fileList.header.tSounds);
 	printf("Track:     %d\n", trackNum);
 }
 
@@ -226,6 +226,7 @@ void nsf_initTune(unsigned char *isBank, unsigned char *mem, unsigned char *x, u
 
 }
 
+
 /* 
  * This is the NSF main loop 
  */
@@ -239,6 +240,12 @@ void nsf_play(char *fileName, int musicNum) {
 	/* store the first track to be sign */
 	trackNum = musicNum;
 
+	/* Open your file */
+	if (nsf_loadFile(fileName) != 0xDEADDEAD) {	
+
+		/* Initialize SDL_Mix */
+		open_audio();
+
 initAgain:
 
 #ifdef WIN32
@@ -246,19 +253,12 @@ initAgain:
 #endif
 #ifdef __LINUX__
 	system("clear");
-#endif
-
-	/* Open your file */
-	if (nsf_loadFile(fileName) != 0xDEADDEAD) {	
-		
+#endif		
 		/* show file information */
 		nsf_showInfo();
 		
 		/* reset 6502 */
 		CPU_reset();
-		
-		/* Initialize SDL_Mix */
-		open_audio();
 
 		/* Initialize apu stuff(triangle, noise, square...) */
 		for (i = 0x4000; i < 0x4013; i++)
@@ -289,6 +289,7 @@ initAgain:
 
 		/* APU Frame Counter Var */
 		int cnt = 0;
+		int samplesCnt = 0;
 		while (1) {
 
 			/* 
@@ -315,8 +316,9 @@ initAgain:
 
 			}
 
-			/* Execute the cpu with 114 ticks */
+
 			CPU_execute(114);
+
 
 			/* Execute it @60 hz */
 			if (delay < SDL_GetTicks()) {
@@ -357,6 +359,25 @@ initAgain:
 				/* check the frame count */
 				cnt > 4 ? cnt = 0 : cnt++;
 			} 
+
+			if (samplesCnt < MAX_SAMPLES) {
+				for (int i = 0; i < 40; i++) {
+					triangle_timer();
+					if (i % 2) {
+					   noise_lfsr();
+					}
+				}
+				short mix = mix_channel() / 2;
+				samples[samplesCnt] = mix;
+				samples[samplesCnt+1] = samples[samplesCnt];
+				samplesCnt += 2;
+			}
+
+			if (SDL_GetQueuedAudioSize(1) < MAX_SAMPLES) {
+				SDL_QueueAudio(1, samples, MAX_SAMPLES*sizeof(short));
+				samplesCnt = 0;
+			}
+
 		}
 		
 		/* Clear memory */	

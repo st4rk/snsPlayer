@@ -42,12 +42,14 @@ unsigned char memoryRead(unsigned short addr) {
 			else
 				apu.pulse_channel_2 = 0;
 
-			if (noise.len_cnt > 0)
-				apu.noise_flag = 1;
-			else
-				apu.noise_flag = 0;
+			if (triangle.len_cnt > 0) {
+				apu.triangle_flag = 1;
+			} else {
+				apu.triangle_flag = 0;
+			}
 
 
+			
 			return (apu.dmc_flag | apu.noise_flag | apu.triangle_flag | apu.pulse_channel_2 | apu.pulse_channel_1);
 		}
 	}
@@ -174,6 +176,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 
 				case TRIANGLE_TMR_LOW:
 					triangle.timer = ((triangle.timer & 0x700) | data);
+					triangle.tmr_cnt = triangle.timer;
 					triangle_freq_output();
 				break;
 
@@ -181,6 +184,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 					triangle.timer      = ((triangle.timer & 0xFF) | ((data & 0x7) << 8));
 					triangle.len_cnt    = getLengthCnt(((data & 0xF8) >> 3)); 
 					triangle_freq_output();
+					triangle.tmr_cnt = triangle.timer;
 					triangle.linear_cnt = triangle.linear;
 					triangle.haltFlag   = 1;
 				break;
@@ -206,7 +210,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 					/* Loop Noise */
 					noise.mode                      = ((data & 0x80) >> 0x7);
 					/* Noise Period */
-					noise.timer                    = noise_lookup_tbl[(data & 0xF)];
+					noise.timer                     = noise_lookup_tbl[(data & 0xF)];
 					noise_out_freq();
 				break;
 
@@ -229,6 +233,7 @@ void writeMemory(unsigned short addr, unsigned char data) {
 			apu.triangle_flag    = ((data & 0x04) >> 0x2);
 			apu.pulse_channel_2  = ((data & 0x02) >> 0x1);
 			apu.pulse_channel_1  =  (data & 0x01);
+
 		}
 
 		/* Frame Counter, it drives the envelope, sweep and lenght count */
@@ -2022,8 +2027,8 @@ void CPU_execute(int cycles) {
 		if (macgyver_var)
 			break;
 		
-		if (PC == 0)
-			exit(0);
+		
+
 		opcode=memoryRead(PC++);
 
 		(*op[opcode])();

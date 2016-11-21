@@ -7,8 +7,8 @@
 #ifndef _APU_H_
 #define _APU_H_
 
-#include <SDL/SDL_mixer.h>
-#include <SDL/SDL.h>
+#include <SDL2/SDL_mixer.h>
+#include <SDL2/SDL.h>
 
 /**
  * timer period lookup table to noise 
@@ -32,6 +32,7 @@ static const unsigned char triangle_sequence[] = {
 };
 
 #define INTERNAL_VOLUME     100
+#define MAX_SAMPLES         512
 
 #define SQUARE_WAVE_UNIT_1  0x0
 #define SQUARE_WAVE_UNIT_2  0x1 
@@ -120,7 +121,7 @@ typedef struct triangle_wave {
 	unsigned char haltFlag;
 
 	/* triangle sequencer */
-	unsigned char triSequence;
+	unsigned int triSequence;
 	unsigned char seqValue;
 
 	/* Output frequency */
@@ -129,6 +130,9 @@ typedef struct triangle_wave {
 	/* Triangle 32 step output */
 	unsigned char step;
 	unsigned char cnt;
+
+	/* old value */
+	short oldOutput;
 } triangle_wave;
 
 typedef struct noise_wave {
@@ -167,6 +171,7 @@ extern square_wave   squareList[2];
 extern triangle_wave triangle;
 extern noise_wave    noise;
 extern apu_status    apu;
+extern short         samples[MAX_SAMPLES];
 /* Square Wave */
 extern void square_envelope(unsigned char unit);
 extern void square_sweep(unsigned char unit);
@@ -199,7 +204,7 @@ extern void open_audio();
 /* call used to close SDL Audio */
 extern void close_audio();
 /* Mix the Square 1 and Square 2 output samples */
-extern short square_mix();
+extern short mix_channel();
 /* Apu Mix */
 extern void apu_mix();
 #endif
