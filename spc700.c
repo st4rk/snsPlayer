@@ -2,157 +2,241 @@
 
 /* SPU */
 
-spc_700 spc;
+spc700 spc;
+spc_info info;
 
 /* Internal Memory 64 KB */
-unsigned char spc_mem[0xFFFF];
+unsigned char spc_mem[0xFFFFF];
+/* DSP Address */
+unsigned char dsp_addr;
+/* DSP Data */
+unsigned char dsp_data;
 
 /* Write 8 bits to memory */
 void spc_writeMemory(unsigned short addr, unsigned char data) {
-	printf("Debug - Write Addr: 0x%X   - Data: 0x%X\n", addr, data);
-
-	addr = addr & 0xFFFF;
-
-	/* PAGE 0 */
-	if ((addr >= 0x0000) && (addr <= 0x00EF)) {
-
-	}
+#ifdef DEBUG
+//	printf("Debug - Write Addr: 0x%X   - Data: 0x%X\n", addr, data);
+#endif
 
 	/* Registers */
-	if ((addr >= 0x00F0) && (addr <= 0x00FF)) {
+	if ((addr >= 0x00F0) && (addr <= 0x00FF)) {	
 		switch (addr & 0xFF) {
+			/** TEST testing functions */
 			case 0xF0:
-
+#ifdef DEBUG
+			printf("Trying to write test register\n");
+#endif
 			break;
-
-			/* Control Register */
+			/** control register */
 			case 0xF1:
+				spc.control_reg = data;
 
+				/* clear input ports 0xF4 and 0xF5 */
+				if (data & 0x10) {
+					spc.port[0] = 0x0;
+					spc.port[1] = 0x0;
+				}
+
+				/* clear input ports 0xF6 and 0xF7 */
+				if (data & 0x20) {
+					spc.port[2] = 0x0;
+					spc.port[3] = 0x0;
+				}
+
+				/* verify if need to enable timer register */
+				spc.tmrList[0].enable = (data & 0x1);
+				spc.tmrList[1].enable = (data & 0x2);
+				spc.tmrList[2].enable = (data & 0x4);
 			break;
-
+			/* DSP register address */
 			case 0xF2:
-
+#ifdef DEBUG
+				printf("DSP Register Addr: 0x%X\n", data);
+#endif
+				dsp_addr = data;
 			break;
-
+			/* DSP register data */
 			case 0xF3:
-
+#ifdef DEBUG
+				printf("DSP Register Data: 0x%X\n", data);
+#endif
+				dsp_write(dsp_addr, data);
 			break;
-
+			/* port 0 */
 			case 0xF4:
-
+				spc.port[0] = data;
 			break;
-
+			/* port 1 */
 			case 0xF5:
-
+				spc.port[1] = data;
 			break;
-
+			/* port 2 */
 			case 0xF6:
-
+				spc.port[2] = data;
 			break;
-
+			/* port 3 */
 			case 0xF7:
-
+				spc.port[3] = data;
 			break;
-
+			/* regular memory */
 			case 0xF8:
-
+				spc_mem[addr] = data;
 			break;
-
+			/* regular memory */
 			case 0xF9:
-
+				spc_mem[addr] = data;
 			break;
-
+			/* timer 0 */
 			case 0xFA:
-
+				spc.tmrList[0].tmr = data;
 			break;
-
+			/* timer 1 */
 			case 0xFB:
-
+				spc.tmrList[1].tmr = data;
 			break;
-
+			/* timer 2 */
 			case 0xFC:
-
+				spc.tmrList[2].tmr = data;
 			break;
-
+			/* counter 0 */
 			case 0xFD:
 
 			break;
-
+			/* counter 1 */
 			case 0xFE:
 
 			break;
-
+			/* counter 2 */
 			case 0xFF:
 
 			break;
-
-			default:
-				printf("Register not found, register : 0x%X data: 0x%X\n",(addr & 0xFF), data);
-			break;
 		}
-	}
-
-	/* Page 1 */
-	if ((addr >= 0x0100) && (addr <= 0x01FF)) {
-
-	}
-
-	/* Memory */
-	if ((addr >= 0x0200) && (addr <= 0xFFBF)) {
-
-	}
-
-	/* Memory (read/write) */
-	if ((addr >= 0xFFC0) && (addr <= 0xFFFF)) {
-
-	}
-
+	} 
+	
+	spc_mem[addr] = data;
 }
 
 /* Read 8 bits from memory */
 unsigned char spc_readMemory(unsigned short addr) {
-	printf("Debug - Read Addr: 0x%X\n", addr);
-
-	addr = addr & 0xFFFF;
-
-	/* PAGE 0 */
-	if ((addr >= 0x0000) && (addr <= 0x00EF)) {
-
-	}
+	unsigned char data = 0;
+#ifdef DEBUG
+	//printf("Debug - Read Addr: 0x%X\n", addr);
+#endif
 
 	/* Registers */
 	if ((addr >= 0x00F0) && (addr <= 0x00FF)) {
+		switch (addr) {
+			/** TEST testing functions */
+			case 0xF0:
+#ifdef DEBUG
+			printf("Trying to read test register\n");
+#endif
+			break;
+			/** control register */
+			case 0xF1:
+				return spc.control_reg;
+			break;
+			/* DSP register address */
+			case 0xF2:
+#ifdef DEBUG
+				printf("DSP Register Addr: 0x%X\n", dsp_addr);
+#endif
+				return dsp_read(dsp_addr);
+			break;
+			/* DSP register data */
+			case 0xF3:
+#ifdef DEBUG
+				printf("DSP Register Data: 0x%X\n", dsp_data);
+#endif
+				return dsp_read(dsp_addr);
+			break;
+			/* port 0 */
+			case 0xF4:
+				return spc.port[0];
+			break;
+			/* port 1 */
+			case 0xF5:
+				return spc.port[1];
+			break;
 
+			/* port 2 */
+			case 0xF6:
+				return spc.port[2];
+			break;
+
+			/* port 3 */
+			case 0xF7:
+				return spc.port[3];
+			break;
+
+			/* regular memory */
+			case 0xF8:
+				return spc_mem[addr];
+			break;
+			/* regular memory */
+			case 0xF9:
+				return spc_mem[addr];
+			break;
+			/* timer 0 */
+			case 0xFA:
+
+			break;
+			/* timer 1 */
+			case 0xFB:
+
+			break;
+			/* timer 2 */
+			case 0xFC:
+
+			break;
+			/* counter 0 */
+			case 0xFD:
+				data = spc.tmrList[0].cnt;
+				spc.tmrList[0].cnt = 0;
+				return data;
+			break;
+			/* counter 1 */
+			case 0xFE:
+				data = spc.tmrList[1].cnt;
+				spc.tmrList[1].cnt = 0;
+				return data;
+			break;
+			/* counter 2 */
+			case 0xFF:
+				data = spc.tmrList[2].cnt;
+				spc.tmrList[2].cnt = 0;
+				return data;
+			break;
+		}
 	}
 
-	/* Page 1 */
-	if ((addr >= 0x0100) && (addr <= 0x01FF)) {
-
-	}
-
-	/* Memory */
-	if ((addr >= 0x0200) && (addr <= 0xFFBF)) {
-
-	}
-
-	/* Memory (read/write) */
 	if ((addr >= 0xFFC0) && (addr <= 0xFFFF)) {
-
+		if (spc.control_reg & 0x80) {
+			return IPL_BOOTROM[addr & 0x3F];
+		} else {
+			return spc_mem[addr];
+		}
 	}
+
+	return spc_mem[addr];
+
+}
+
+void spc_writeMemory16(unsigned short addr, unsigned short data) {
 
 }
 
 /* Stack Manipulation */
 void push(unsigned char data) {
-	spc_writeMemory((spc.SP + 0x0100), data);
+	spc_writeMemory((spc.SP | 0x0100), data);
 
-	spc.SP = ((spc.SP - 1) & 0xFF);
+	spc.SP--;
 }
 
 unsigned char pop() {
-	spc.SP = ((spc.SP + 1) & 0xFF);
+	spc.SP++;
 
-	return (spc_readMemory((spc.SP + 0x0100)));
+	return (spc_readMemory((spc.SP | 0x0100)));
 }
 
 /* Addressing mode */
@@ -166,71 +250,51 @@ void directPage() {
 }
 
 void directPage_indexedX() {
-	spc.EA = (spc_readMemory(spc.PC++) + spc.X) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3);
+	directPage();
+	unsigned short highByte = (spc.EA & 0xFF00);
+	unsigned short addr = spc.EA + spc.X;
+	spc.EA = (highByte) | (addr & 0xFF);
 }
 
 void directPage_indexedY()  {
-	spc.EA = (spc_readMemory(spc.PC++) + spc.Y) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3);
+	directPage();
+	unsigned short highByte = (spc.EA & 0xFF00);
+	unsigned short addr = spc.EA + spc.Y;
+	spc.EA = (highByte) | (addr & 0xFF);
 }
 
 void indirect() {
-	spc.EA = (spc_readMemory(spc.X) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	spc.EA = (spc_readMemory(spc.X | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3)));
 }
 
 void indirect_autoIncrement() {
-	spc.EA = (spc_readMemory(spc.X++) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
-}
-
-void directPage_directPage() {
-
-}
-
-void indirectPage_indirectPage() {
-
-}
-
-void immData_directPage() {
-
-}
-
-void directPage_bit() {
-
-}
-
-void directPage_bitRelative() {
-
-}
-
-void absolute_booleanBit() {
-
+	spc.EA = (spc_readMemory(spc.X++ | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3)));
 }
 
 void absolute() {
-	EA = (spc_readMemory(spc.PC) | (spc_readMemory(spc.PC + 1) << 8));
+	spc.EA = (spc_readMemory(spc.PC) | (spc_readMemory(spc.PC + 1) << 8));
 	spc.PC += 2;
 }
 
 void absolute_indexedX() {
-	EA = (spc_readMemory(spc.PC) | (spc_readMemory(spc.PC + 1) << 8)) + spc.Y;
+	spc.EA = (spc_readMemory(spc.PC) | (spc_readMemory(spc.PC + 1) << 8)) + spc.X;
 	spc.PC += 2;
 }
 
 void absolute_indexedY() {
-	EA = (spc_readMemory(spc.PC) | (spc_readMemory(spc.PC + 1) << 8)) + spc.Y;
+	spc.EA = (spc_readMemory(spc.PC) | (spc_readMemory(spc.PC + 1) << 8)) + spc.Y;
 	spc.PC += 2;
 }
 
 void indirect_indexedX() {
-	spc.EA = ((spc_readMemory(spc.PC) + spc.X) & 0xFF)| ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3) ;
-	spc.EA = spc_readMemory(spc.EA);
-	spc.PC++;
+	directPage_indexedX();
+	spc.EA = (spc_readMemory(spc.EA) | (spc_readMemory(spc.EA + 1) << 8));
 }
 
 void indirect_indexedY_indirect() {
-	spc.EA = spc_readMemory(spc.PC++) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3);
-	spc.EA = spc_readMemory(spc.EA) + spc.Y;
+	directPage();
+	spc.EA = (spc_readMemory(spc.EA) | (spc_readMemory(spc.EA + 1) << 8)) + spc.Y;
 }
-
 
 /* Instruction set */
 
@@ -246,7 +310,6 @@ void mov_x() {
 
 	if (spc.X) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.X & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void mov_y() {
@@ -254,42 +317,38 @@ void mov_y() {
 
 	if (spc.Y) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.Y & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void mov_ax() {
 	spc.A = spc.X;
+
 	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void mov_xa() {
 	spc.X = spc.A;
+
 	if (spc.X) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.X & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void mov_ay() {
-	spc.A = spc.Y
+	spc.A = spc.Y;
 	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void mov_ya() {
 	spc.Y = spc.A;
 	if (spc.Y) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.Y & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void mov_xsp() {
 	spc.X = spc.SP;
 	if (spc.X) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.X & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void mov_spx() {
@@ -297,70 +356,68 @@ void mov_spx() {
 }
 
 void movw_ya() {
-	A = spc_readMemory(EA);
-	Y = spc_readMemory(EA + 1);
+	unsigned short YA = (spc_readMemory(spc.EA) | (spc_readMemory(spc.EA + 1) << 8));
 
-	if (A+Y) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
-	if (Y & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
+	spc.A = spc_readMemory(spc.EA);
+	spc.Y = spc_readMemory(spc.EA + 1);
+
+	if (YA) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
+	if (YA & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void mov_dp() {
-	unsigned char data =  spc_readMemory(EA);
-
+	unsigned char data =  spc_readMemory(spc.EA);
 	directPage();
-	spc_writeMemory(EA, data);
+	spc_writeMemory(spc.EA, data);
 }
 
 void mov_dp_reg(unsigned char reg) {
-
 	directPage();
-	spc_writeMemory(EA, reg);
+	spc_writeMemory(spc.EA, reg);
 }
 
 void mov_dp_x(unsigned char reg) {
 	directPage_indexedX();
-	spc_writeMemory(EA, reg);
+	spc_writeMemory(spc.EA, reg);
 }
-
 
 void mov_dp_y(unsigned char reg) {
 	directPage_indexedY();
-	spc_writeMemory(EA, reg);
+	spc_writeMemory(spc.EA, reg);
 }
 
 void mov_abs(unsigned char reg) {
 	absolute();
-	spc_writeMemory(EA, reg);
+	spc_writeMemory(spc.EA, reg);
 }
 
 void mov_abs_x(unsigned char reg) {
 	absolute_indexedX();
-	spc_writeMemory(EA, reg);
+	spc_writeMemory(spc.EA, reg);
 }
 
 void mov_abs_y(unsigned char reg) {
 	absolute_indexedY();
-	spc_writeMemory(EA, reg);
+	spc_writeMemory(spc.EA, reg);
 }
 
 void mov_dp_ya() {
-	unsigned short data = ((spc.Y << 8) & 0xFF) | spc.A;
-	spc_writeMemory(EA);
+	spc_writeMemory(spc.EA, spc.A);
+	spc_writeMemory(spc.EA+1, spc.Y);
 }
 
 void or() {
-	EA = spc_readMemory(EA);
+	spc.EA = spc_readMemory(spc.EA);
 
-	A = (A | (EA & 0xFF));
+	spc.A = (spc.A | (spc.EA & 0xFF));
+
 	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
-
 void or_xy() {
-	unsigned short X = (spc_readMemory(spc.X) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
-	unsigned short Y = (spc_readMemory(spc.Y) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short X = (spc.X | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short Y = (spc.Y | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
 
 	unsigned char X_2 = spc_readMemory(X);
 	Y = spc_readMemory(Y);
@@ -369,39 +426,35 @@ void or_xy() {
 
 	spc_writeMemory(X, X_2);
 
-
 	if (X_2) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (X_2 & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void or_dp() {
-	unsigned char data_1 = spc_readMemory(EA);
+	unsigned char data_1 = spc_readMemory(spc.EA);
 	directPage();
-	unsigned char data_2 = spc_readMemory(EA);
+	unsigned char data_2 = spc_readMemory(spc.EA);
 
 	data_2 = (data_2 | data_1);
 
-	spc_writeMemory(EA, data_2);
+	spc_writeMemory(spc.EA, data_2);
 
 	if (data_2) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data_2 & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void and() {
-	EA = spc_readMemory(EA);
+	spc.EA = spc_readMemory(spc.EA);
 
-	A = (A & (EA & 0xFF));
+	spc.A = (spc.A & (spc.EA & 0xFF));
 
 	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void and_xy() {
-	unsigned short X = (spc_readMemory(spc.X) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
-	unsigned short Y = (spc_readMemory(spc.Y) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short X = (spc.X | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short Y = (spc.Y | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
 
 	unsigned char X_2 = spc_readMemory(X);
 	Y = spc_readMemory(Y);
@@ -413,36 +466,33 @@ void and_xy() {
 
 	if (X_2) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (X_2 & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void and_dp() {
-	unsigned char data_1 = spc_readMemory(EA);
+	unsigned char data_1 = spc_readMemory(spc.EA);
 	directPage();
-	unsigned char data_2 = spc_readMemory(EA);
+	unsigned char data_2 = spc_readMemory(spc.EA);
 
 	data_2 = (data_2 & data_1);
 
-	spc_writeMemory(EA, data_2);
+	spc_writeMemory(spc.EA, data_2);
 
 	if (data_2) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data_2 & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void eor() {
-	EA = spc_readMemory(EA);
+	spc.EA = spc_readMemory(spc.EA);
 
-	A = (A ^ (EA & 0xFF));
+	spc.A = (spc.A ^ (spc.EA & 0xFF));
 
 	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
-
 void eor_xy() {
-	unsigned short X = (spc_readMemory(spc.X) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
-	unsigned short Y = (spc_readMemory(spc.Y) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short X = (spc.X | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short Y = (spc.Y | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
 
 	unsigned char X_2 = spc_readMemory(X);
 	Y = spc_readMemory(Y);
@@ -451,335 +501,295 @@ void eor_xy() {
 
 	spc_writeMemory(X, X_2);
 
-
 	if (X_2) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (X_2 & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void eor_dp() {
-	unsigned char data_1 = spc_readMemory(EA);
+	unsigned char data_1 = spc_readMemory(spc.EA);
 	directPage();
-	unsigned char data_2 = spc_readMemory(EA);
+	unsigned char data_2 = spc_readMemory(spc.EA);
 
 	data_2 = (data_2 ^ data_1);
 
-	spc_writeMemory(EA, data_2);
+	spc_writeMemory(spc.EA, data_2);
 
 	if (data_2) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data_2 & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
-
 void adc() {
-	EA = spc_readMemory(EA);
-	unsigned short temp = ((EA + spc.A + (spc.PSW & PSW_FLAG_CARRY)) & 0xFF);
+	unsigned char data = spc_readMemory(spc.EA);
+	unsigned short temp = (data + spc.A + (spc.PSW & PSW_FLAG_CARRY));
 
-	/* Verify half flag */
-	if ((spc.A & 0x8)) {
-		if ((temp & 0x10) && (!(temp & 0x8)))
-			SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-		else
-			CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-	}
 	/* Verify if a carry happened */
 	if (temp > 0xFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 
-	/* Check a overflow */
-	if ((~(spc.A ^ EA)) & (spc.A ^ temp) & PSW_FLAG_OVERFLOW) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
-	spc.A = (temp & 0xFF);
+	/* verify if a half flag happened */
+	if ((temp ^ data ^ spc.A) & 0x10) SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
 
+	/* Check a overflow */
+	if ((~(spc.A ^ data)) & (spc.A ^ temp) & 0x80) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+
+	spc.A = (temp & 0xFF);
 
 	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void adc_imm() {
-	unsigned char data_1 = spc_readMemory(EA);
+	unsigned char data_1 = spc_readMemory(spc.EA);
 	directPage();
-	unsigned char data_2 = spc_readMemory(EA);
+	unsigned char data_2 = spc_readMemory(spc.EA);
 
-	unsigned short temp = ((data_1 + data_2 + (spc.PSW & PSW_FLAG_CARRY)) & 0xFF);
+	unsigned short temp = (data_1 + data_2 + (spc.PSW & PSW_FLAG_CARRY));
 
-	/* Verify half flag */
-	if ((data_2 & 0x8)) {
-		if ((temp & 0x10) && (!(temp & 0x8)))
-			SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-		else
-			CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-	}
+	/* verify if a half flag happened */
+	if ((temp ^ data_1 ^ data_2) & 0x10) SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
+
 	/* Verify if a carry happened */
 	if (temp > 0xFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 
 	/* Check a overflow */
-	if ((~(data_2 ^ data_1)) & (data_2 ^ temp) & PSW_FLAG_OVERFLOW) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+	if ((~(data_1 ^ data_2)) & (data_2 ^ temp) & 0x80) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
 
-	spc_writeMemory(EA, (temp & 0xFF));
+	temp = temp & 0xFF;
+	spc_writeMemory(spc.EA, temp);
 
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
-
-
 }
 
-
 void adc_xy() {
-	unsigned short X = (spc_readMemory(spc.X) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
-	unsigned short Y = (spc_readMemory(spc.Y) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short X = (spc.X | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short Y = (spc.Y | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
 
 	unsigned char X_2 = spc_readMemory(X);
 	Y = spc_readMemory(Y);
 
-	unsigned short temp = ((X_2 + Y + (spc.PSW & PSW_FLAG_CARRY)) & 0xFF);
+	unsigned short temp = (X_2 + Y + (spc.PSW & PSW_FLAG_CARRY));
 
-	/* Verify half flag */
-	if ((spc.A & 0x8)) {
-		if ((temp & 0x10) && (!(temp & 0x8)))
-			SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-		else
-			CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-	}
 	/* Verify if a carry happened */
 	if (temp > 0xFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 
-	/* Check a overflow */
-	if ((~(X_2 ^ Y)) & (X_2 ^ temp) & PSW_FLAG_OVERFLOW) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+	/* verify if a half flag happened */
+	if ((temp ^ X_2 ^ Y) & 0x10) SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
 
-	spc_writeMemory(X, (temp & 0xFF));
+	/* Check a overflow */
+	if ((~(X_2 ^ Y)) & (X_2 ^ temp) & 0x80) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+
+	temp = temp & 0xFF;
+	spc_writeMemory(X, temp);
 
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
-
 }
 
 void adc_dp() {
-	unsigned char data_1 = spc_readMemory(EA);
+	unsigned char data_1 = spc_readMemory(spc.EA);
 	directPage();
-	unsigned char data_2 = spc_readMemory(EA);
+	unsigned char data_2 = spc_readMemory(spc.EA);
 
-	unsigned short temp = ((data_1 + data_2 + (spc.PSW & PSW_FLAG_CARRY)) & 0xFF);
+	unsigned short temp = ((data_1 + data_2 + (spc.PSW & PSW_FLAG_CARRY)));
 
-	/* Verify half flag */
-	if ((data_2 & 0x8)) {
-		if ((temp & 0x10) && (!(temp & 0x8)))
-			SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-		else
-			CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-	}
+	/* verify if a half flag happened */
+	if ((temp ^ data_1 ^ data_2) & 0x10) SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
+
 	/* Verify if a carry happened */
 	if (temp > 0xFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 
 	/* Check a overflow */
-	if ((~(data_2 ^ data_1)) & (data_2 ^ temp) & PSW_FLAG_OVERFLOW) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+	if ((~(data_2 ^ data_1)) & (data_2 ^ temp) & 0x80) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
 
-	spc_writeMemory(EA, (temp & 0xFF));
+	temp = temp & 0xFF;
+	spc_writeMemory(spc.EA, temp);
 
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
-
 }
 
-
 void sbc() {
-	EA = spc_readMemory(EA) ^ 0xFF;
-	unsigned short temp = ((EA + spc.A + (spc.PSW & PSW_FLAG_CARRY)) & 0xFF);
+	unsigned char data = spc_readMemory(spc.EA);
+	int temp = (data - spc.A - (1 - (spc.PSW & PSW_FLAG_CARRY)));
 
-	/* Verify half flag */
-	if ((spc.A & 0x8)) {
-		if ((temp & 0x10) && (!(temp & 0x8)))
-			SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-		else
-			CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-	}
 	/* Verify if a carry happened */
-	if (temp > 0xFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	if (temp >= 0x0) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+
+	/* verify if a half flag happened */
+	if (((temp ^ data ^ spc.A) & 0x10) == 0) SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
 
 	/* Check a overflow */
-	if ((~(spc.A ^ EA)) & (spc.A ^ temp) & PSW_FLAG_OVERFLOW) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
-	spc.A = (temp & 0xFF);
+	if (((spc.A ^ data)) & (spc.A ^ temp) & 0x80) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
 
+	spc.A = (temp & 0xFF);
 
 	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void sbc_imm() {
-	unsigned char data_1 = spc_readMemory(EA) ^ 0xFF;
+	unsigned char data_1 = spc_readMemory(spc.EA);
 	directPage();
-	unsigned char data_2 = spc_readMemory(EA);
+	unsigned char data_2 = spc_readMemory(spc.EA);
 
-	unsigned short temp = ((data_1 + data_2 + (spc.PSW & PSW_FLAG_CARRY)) & 0xFF);
+	int temp = (data_1 - data_2 - (1 - (spc.PSW & PSW_FLAG_CARRY)));
 
-	/* Verify half flag */
-	if ((data_2 & 0x8)) {
-		if ((temp & 0x10) && (!(temp & 0x8)))
-			SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-		else
-			CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-	}
 	/* Verify if a carry happened */
-	if (temp > 0xFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	if (temp >= 0x0) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+
+	/* verify if a half flag happened */
+	if (((temp ^ data_1 ^ data_2) & 0x10) == 0) SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
 
 	/* Check a overflow */
-	if ((~(data_2 ^ data_1)) & (data_2 ^ temp) & PSW_FLAG_OVERFLOW) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+	if (((data_2 ^ data_1)) & (data_2 ^ temp) & 0x80) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
 
-	spc_writeMemory(EA, (temp & 0xFF));
+	temp = temp & 0xFF;
+	spc_writeMemory(spc.EA, temp);
 
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
-
-
 }
 
-
 void sbc_xy() {
-	unsigned short X = (spc_readMemory(spc.X) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
-	unsigned short Y = (spc_readMemory(spc.Y) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short X = (spc.X | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short Y = (spc.Y | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
 
-	unsigned char X_2 = spc_readMemory(X) ^ 0xFF;
+	unsigned char X_2 = spc_readMemory(X);
 	Y = spc_readMemory(Y);
 
-	unsigned short temp = ((X_2 + Y + (spc.PSW & PSW_FLAG_CARRY)) & 0xFF);
+	int temp = (X_2 - Y - (1 - (spc.PSW & PSW_FLAG_CARRY)));
 
-	/* Verify half flag */
-	if ((spc.A & 0x8)) {
-		if ((temp & 0x10) && (!(temp & 0x8)))
-			SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-		else
-			CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-	}
+	/* verify if a half flag happened */
+	if (((temp ^ X_2 ^ Y) & 0x10) == 0) SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
+
 	/* Verify if a carry happened */
-	if (temp > 0xFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	if (temp >= 0x0) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 
 	/* Check a overflow */
-	if ((~(X_2 ^ Y)) & (X_2 ^ temp) & PSW_FLAG_OVERFLOW) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+	if (((X_2 ^ Y)) & (X_2 ^ temp) & 0x80) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
 
-	spc_writeMemory(X, (temp & 0xFF));
+	temp = temp & 0xFF;
+	spc_writeMemory(X, temp);
 
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
-
 }
 
 void sbc_dp() {
-	unsigned char data_1 = spc_readMemory(EA) ^ 0xFF;
+	unsigned char data_1 = spc_readMemory(spc.EA);
 	directPage();
-	unsigned char data_2 = spc_readMemory(EA);
+	unsigned char data_2 = spc_readMemory(spc.EA);
 
-	unsigned short temp = ((data_1 + data_2 + (spc.PSW & PSW_FLAG_CARRY)) & 0xFF);
+	int temp = (data_1 - data_2 - (1 - (spc.PSW & PSW_FLAG_CARRY)));
 
-	/* Verify half flag */
-	if ((data_2 & 0x8)) {
-		if ((temp & 0x10) && (!(temp & 0x8)))
-			SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-		else
-			CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-	}
 	/* Verify if a carry happened */
-	if (temp > 0xFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	if (temp >= 0x0) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+
+	/* verify if a half flag happened */
+	if (((temp ^ data_1 ^ data_2) & 0x10) == 0) SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
 
 	/* Check a overflow */
-	if ((~(data_2 ^ data_1)) & (data_2 ^ temp) & PSW_FLAG_OVERFLOW) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+	if (((data_2 ^ data_1)) & (data_2 ^ temp) & 0x80) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
 
-	spc_writeMemory(EA, (temp & 0xFF));
+	temp = temp & 0xFF;
+	spc_writeMemory(spc.EA, temp);
 
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
-
 }
 
 void cmp() {
-	EA = spc_readMemory(EA);
+	spc.EA = spc_readMemory(spc.EA);
 
-	int temp = spc.A - EA;
+	int temp = spc.A - spc.EA;
 
-	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	if (temp >= 0) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	temp = temp & 0xFF;
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void cmp_xy() {
-	unsigned short X = (spc_readMemory(spc.X) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
-	unsigned short Y = (spc_readMemory(spc.Y) | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short X = (spc.X | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+	unsigned short Y = (spc.Y | ((spc.PSW & PSW_FLAG_DIRECTPAGE) << 3));
+
 	X = spc_readMemory(X);
 	Y = spc_readMemory(Y);
 
 	int temp = X - Y;
 
-	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	if (temp >= 0) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	temp = temp & 0xFF;
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void cmp_dp() {
-	unsigned char data = spc_readMemory(EA);
+	unsigned char data = spc_readMemory(spc.EA);
 	directPage();
-	EA = spc_readMemory(EA);
+	spc.EA = spc_readMemory(spc.EA);
 
-	int temp = EA - data;
+	int temp = spc.EA - data;
 
-	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	if (temp >= 0) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	temp = temp & 0xFF;
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void cpx() {
-	EA = spc_readMemory(EA);
+	spc.EA = spc_readMemory(spc.EA);
 
-	int temp = spc.X - EA;
+	int temp = spc.X - spc.EA;
 
-	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	if (temp >= 0) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	temp = temp & 0xFF;
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void cpy() {
-	EA = spc_readMemory(EA);
+	spc.EA = spc_readMemory(spc.EA);
 
-	int temp = spc.Y - EA;
+	int temp = spc.Y - spc.EA;
 
-	if (!(temp & 0x8000)) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	if (temp >= 0) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	temp = temp & 0xFF;
 	if (temp) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (temp & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
-
 }
 
 void inc_mem() {
-	unsigned char data = spc_readMemory(EA);
+	unsigned char data = spc_readMemory(spc.EA);
 
-	spc_writeMemory(EA, data++);
+	data = data + 1;
+
+	spc_writeMemory(spc.EA, data);
+
 	if (data) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void inc_reg(unsigned char *reg) {
 
-	*reg++;
+	*reg = *reg + 1;
 
 	if (*reg) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (*reg & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void dec_mem() {
-	unsigned char data = spc_readMemory(EA);
+	unsigned char data = spc_readMemory(spc.EA);
 
-	spc_writeMemory(EA, data--);
+	data = data - 1;
+
+	spc_writeMemory(spc.EA, data);
 	if (data) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void dec_reg(unsigned char *reg) {
-	*reg--;
+	*reg = *reg - 1;
 
 	if (*reg) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (*reg & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
@@ -795,12 +805,12 @@ void asl_a() {
 }
 
 void asl_mem() {
-	unsigned char data = spc_readMemory(EA);
+	unsigned char data = spc_readMemory(spc.EA);
 
 	if (data & 0x80) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	data <<= 1;
 
-	spc_writeMemory(EA, data);
+	spc_writeMemory(spc.EA, data);
 
 	if (data) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
@@ -816,12 +826,12 @@ void lsr_a() {
 }
 
 void lsr_mem() {
-	unsigned char data = spc_readMemory(EA);
+	unsigned char data = spc_readMemory(spc.EA);
 
 	if (data & 0x1) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	data >>= 1;
 
-	spc_writeMemory(EA, data);
+	spc_writeMemory(spc.EA, data);
 
 	if (data) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
@@ -840,13 +850,13 @@ void rol_a() {
 }
 
 void rol_mem() {
-	unsigned char data = spc_readMemory(EA);
+	unsigned char data = spc_readMemory(spc.EA);
 	unsigned char c = spc.PSW & PSW_FLAG_CARRY;
 
 	if (data & 0x80) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	data = (data << 1) | c;
 
-	spc_writeMemory(EA, data);
+	spc_writeMemory(spc.EA, data);
 
 	if (data) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
@@ -865,44 +875,44 @@ void ror_a() {
 }
 
 void ror_mem() {
-	unsigned char data = spc_readMemory(EA);
+	unsigned char data = spc_readMemory(spc.EA);
 	unsigned char c = spc.PSW & PSW_FLAG_CARRY;
 
-	if (data & 0x1) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	if (data & PSW_FLAG_CARRY) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	data = (data >> 1) | c;
 
-	spc_writeMemory(EA, data);
+	spc_writeMemory(spc.EA, data);
 
 	if (data) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void incw() {
-	unsigned short data = (spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
+	unsigned short data = (spc_readMemory(spc.EA) | (spc_readMemory(spc.EA + 1) << 8));
 
 	data++;
 
-	spc_writeMemory(EA, data & 0xFF);
-	spc_writeMemory(EA+1, (data >> 8) & 0xFF);
+	spc_writeMemory(spc.EA, data & 0xFF);
+	spc_writeMemory(spc.EA+1, (data >> 8) & 0xFF);
 
 	if (data) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void decw() {
-	unsigned short data = (spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
+	unsigned short data = (spc_readMemory(spc.EA) | (spc_readMemory(spc.EA + 1) << 8));
 
 	data--;
 
-	spc_writeMemory(EA, data & 0xFF);
-	spc_writeMemory(EA+1, (data >> 8) & 0xFF);
+	spc_writeMemory(spc.EA, data & 0xFF);
+	spc_writeMemory(spc.EA+1, (data >> 8) & 0xFF);
 
 	if (data) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (data & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void addw() {
-	unsigned short data = (spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
+	unsigned short data = (spc_readMemory(spc.EA) | (spc_readMemory(spc.EA + 1) << 8));
 	unsigned short YA   = spc.A | (spc.Y << 8);
 	unsigned int result = YA + data;
 
@@ -910,129 +920,137 @@ void addw() {
 	if ((YA ^ data ^ result) & 0x1000) SET_FLAG (spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
 	if (result > 0xFFFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 
-	spc.Y = (YA >> 0x8) & 0xFF;
-	spc.A = (YA & 0xFF);
+	result = result & 0xFFFF;
+	spc.Y = (result >> 0x8) & 0xFF;
+	spc.A = (result & 0xFF);
 
-	if (YA) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
-	if (YA & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
+	if (result) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
+	if (result & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void subw() {
-	unsigned short data = (spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
+	unsigned short data = (spc_readMemory(spc.EA) | (spc_readMemory(spc.EA + 1) << 8));
 	unsigned short YA   = spc.A | (spc.Y << 8);
-	unsigned int result = YA - data;
+	int result = YA - data;
 
-	if ((~(YA ^ data)) & (YA ^ result) & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
-	if ((YA ^ data ^ result) & 0x1000) SET_FLAG (spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
-	if (result > 0xFFFF) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
+	if ((YA ^ data) & (YA ^ result) & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+	if (((YA ^ data ^ result) & 0x1000) == 0) SET_FLAG (spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
+	if (result >= 0x0) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 
-	spc.Y = (YA >> 0x8) & 0xFF;
-	spc.A = (YA & 0xFF);
+	result = result & 0xFFFF;
+	spc.Y = (result >> 0x8) & 0xFF;
+	spc.A = (result & 0xFF);
 
-	if (YA) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
-	if (YA & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
+	if (result) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
+	if (result & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void cmpw() {
-	unsigned short data = (spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
+	unsigned short data = (spc_readMemory(spc.EA) | (spc_readMemory(spc.EA + 1) << 8));
 	unsigned short YA   = spc.A | (spc.Y << 8);
 
 	YA = YA - data;
 
-	spc.Y = (YA >> 0x8) & 0xFF;
-	spc.A = (YA & 0xFF);
-
+	if (YA >= 0) SET_FLAG(spc.PSW, PSW_FLAG_CARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	if (YA) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (YA & 0x8000) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void bbc(unsigned char bit_mask) {
-	unsigned char dp = spc_readMemory(EA);
+	unsigned char dp = spc_readMemory(spc.EA);
+    char rel = spc_readMemory(spc.PC++);
 
 	if (!(dp & bit_mask)) {
-		 unsigned char rel = spc_readMemory(PC++);
-		 PC += rel;
+		 spc.PC += rel;
 		 spc.cycles += 2;
 	}
 }
 
 void bbs(unsigned char bit_mask) {
-	unsigned char dp = spc_readMemory(EA);
+	unsigned char dp = spc_readMemory(spc.EA);
+	char rel = spc_readMemory(spc.PC++);
 
-	if (dp & bitmask) {
-		unsigned char rel = spc_readMemory(PC++);
-		PC += rel;
+	if (dp & bit_mask) {
+		spc.PC += rel;
 		spc.cycles += 2;
 	}
 }
 
 void bcc() {
+	char rel = spc_readMemory(spc.PC++);
+
 	if (!(spc.PSW & PSW_FLAG_CARRY)) {
-		unsigned char rel = spc_readMemory(PC++);
-		PC += rel;
+		spc.PC += rel;
 		spc.cycles += 2;
 	}
 }
 
 void bcs() {
+	char rel = spc_readMemory(spc.PC++);
+
 	if (spc.PSW & PSW_FLAG_CARRY) {
-		unsigned char rel = spc_readMemory(PC++);
-		PC += rel;
+		spc.PC += rel;
 		spc.cycles += 2;
 	}
 }
 
 void beq() {
+	char rel = spc_readMemory(spc.PC++);
+
 	if (spc.PSW & PSW_FLAG_ZERO) {
-		unsigned char rel = spc_readMemory(PC++);
-		PC += rel;
+		spc.PC += rel;
 		spc.cycles += 2;
 	}
 }
 
 void bmi() {
+	char rel = spc_readMemory(spc.PC++);
+
 	if (spc.PSW & PSW_FLAG_NEGATIVE) {
-		unsigned char rel = spc_readMemory(PC++);
-		PC += rel;
+		spc.PC += rel;
 		spc.cycles += 2;
 	}
 }
 
 void bne() {
+	char rel = spc_readMemory(spc.PC++);
+
 	if (!(spc.PSW & PSW_FLAG_ZERO)) {
-		unsigned char rel = spc_readMemory(PC++);
-		PC += rel;
+		spc.PC += rel;
 		spc.cycles += 2;
 	}
 }
 
 void bpl() {
+	char rel = spc_readMemory(spc.PC++);
+
 	if (!(spc.PSW & PSW_FLAG_NEGATIVE)) {
-		unsigned char rel = spc_readMemory(PC++);
-		PC += rel;
+		spc.PC += rel;
 		spc.cycles += 2;
 	}
 }
 
 void bvc() {
+	char rel = spc_readMemory(spc.PC++);
+
 	if (!(spc.PSW & PSW_FLAG_OVERFLOW)) {
-		unsigned char rel = spc_readMemory(PC++);
-		PC += rel;
+		spc.PC += rel;
 		spc.cycles += 2;
 	}
 }
 
 void bvs() {
+	char rel = spc_readMemory(spc.PC++);
+
 	if (spc.PSW & PSW_FLAG_OVERFLOW) {
-		unsigned char rel = spc_readMemory(PC++);
-		PC += rel;
+		spc.PC += rel;
 		spc.cycles += 2;
 	}
 }
 
 void bra() {
-		unsigned char rel = spc_readMemory(PC++);
-		PC += rel;
+	char rel = spc_readMemory(spc.PC++);
+	spc.PC += rel;
 }
 
 void brk() {
@@ -1040,24 +1058,29 @@ void brk() {
 	 push((spc.PC & 0xFF00) >> 8);
  	 push(spc.PC & 0xFF);
 	 push(spc.PSW);
-	 spc.PC = 0xFFDE;
+	 spc.PC = (spc_readMemory(0xFFDE) | (spc_readMemory(0xFFDF) << 8));
 	 SET_FLAG(spc.PSW, PSW_FLAG_BREAK);
 	 CLEAR_FLAG(spc.PSW, PSW_FLAG_INTENABLE);
 }
 
 void call() {
-	push((spc.PC & 0xFF00) >> 8);
+	push(spc.PC  >> 8);
 	push(spc.PC & 0xFF);
-	spc.PC = spc_readMemory(EA);
+	spc.PC = spc.EA;
 }
 
 void cbne() {
-	cmp();
-	bne();
+	unsigned char data = spc_readMemory(spc.EA);
+	unsigned char rel = spc_readMemory(spc.PC++);
+
+	if (data != spc.A) {
+		spc.PC += rel;
+		spc.cycles += 2;
+	}
 }
 
 void clr1(unsigned char bit_mask) {
-	spc_writeMemory(EA, (spc_readMemory(EA) & ~bit_mask));
+	spc_writeMemory(spc.EA, (spc_readMemory(spc.EA) & ~bit_mask));
 }
 
 void clrc() {
@@ -1081,26 +1104,61 @@ void ei() {
 	SET_FLAG(spc.PSW, PSW_FLAG_INTENABLE);
 }
 
+void dbnz_y() {
+	char rel = spc_readMemory(spc.PC++);
+	spc.Y--;
+
+	if (spc.Y != 0) {
+		spc.PC += rel;
+		spc.cycles += 2;
+	}
+}
+
+void dbnz_d() {
+	directPage();
+	unsigned char data = spc_readMemory(spc.EA);
+	char rel = spc_readMemory(spc.PC++);
+
+	data = (data - 1) & 0xFF;
+
+	spc_writeMemory(spc.EA, data);
+
+	if (data != 0) {
+		spc.PC += rel;
+		spc.cycles += 2;
+	}
+}
+
 void DIV() {
 	unsigned short YA = spc.A | (spc.Y << 8);
 
-	if ((YA / spc.X) > 0xFF) SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
-	if ((spc.X & 0xF) <= (spc.Y & 0xF)) SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
+	unsigned int yva = YA;
+	unsigned int xva = (spc.X << 9);
 
-	spc.A = YA / spc.X;
-	spc.Y = YA % spc.X;
+	for (int i = 0; i < 9; i++) {
+		yva = yva << 1;
+		if (yva & 0x20000) yva = (yva & 0x1FFFF) | 0x1;
+		if (yva >= xva) yva = yva ^ 0x1;
+		if (yva & 0x1) yva = (yva - xva) & 0x1FFFF;
+	}
+	/**  yva => Y, A, and V flag as YYYYYYYY V AAAAAAAA src: Anomie's SPC700 Doc */
+	spc.Y = (yva >> 0x9) & 0xFF;
+	spc.A = yva & 0xFF;
+
+	if (yva & 0x100)  SET_FLAG(spc.PSW, PSW_FLAG_OVERFLOW); else CLEAR_FLAG(spc.PSW, PSW_FLAG_OVERFLOW);
+	if ((spc.X & 0xF) <= (spc.Y & 0xF)) SET_FLAG(spc.PSW, PSW_FLAG_HALFCARRY); else CLEAR_FLAG(spc.PSW, PSW_FLAG_HALFCARRY);
 
 	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
 	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void jmp_1f() {
-	unsigned short data = spc_readMemory(EA) | (spc_readMemory(EA + 1) << 8);
-	PC = EA;
+	unsigned short data = spc_readMemory(spc.EA) | (spc_readMemory(spc.EA + 1) << 8);
+	spc.PC = data;
 }
 
-void jmp_3f() {
-	PC = spc_readMemory(EA);
+void jmp_5f() {
+	spc.PC = spc.EA;
 }
 
 void notc() {
@@ -1119,7 +1177,7 @@ void ret1() {
 }
 
 void set1(unsigned char bit_mask) {
-	spc_writeMemory(EA, (spc_readMemory(EA) | bit_mask));
+	spc_writeMemory(spc.EA, (spc_readMemory(spc.EA) | bit_mask));
 }
 
 void setPSW(unsigned char flag) {
@@ -1133,15 +1191,24 @@ void tcall(unsigned short addr) {
 }
 
 void tclr1() {
-	unsigned char data = spc_readMemory(EA);
-
+	unsigned char data = spc_readMemory(spc.EA);
 	data = data &~ spc.A;
+
+	spc_writeMemory(spc.EA, data);
+
+	if ((spc.A - data)) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
+	if ((spc.A - data) & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void tset1() {
-	unsigned char data = spc_readMemory(EA);
+	unsigned char data = spc_readMemory(spc.EA);
+
 	data = data | spc.A;
 
+	spc_writeMemory(spc.EA, data);
+
+	if ((spc.A - data)) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
+	if ((spc.A - data) & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
 }
 
 void mul() {
@@ -1155,75 +1222,68 @@ void mul() {
 }
 
 void and1_not() {
-	unsigned char data = spc_readMemory(EA & 0x1FFF);
+	unsigned char data = spc_readMemory(spc.EA & 0x1FFF);
 
-	if (data & (1 << (EA >> 13))) {
+	if (data & (1 << (spc.EA >> 13))) {
 		CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	}
 }
 
 void and1() {
-	unsigned char data = spc_readMemory(EA & 0x1FFF);
+	unsigned char data = spc_readMemory(spc.EA & 0x1FFF);
 
-	if (!(data & (1 << (EA >> 13))) {
+	if (!(data & (1 << (spc.EA >> 13)))) {
 		CLEAR_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	}
 }
 
 void eor1() {
-	unsigned char data = spc_readMemory(EA & 0x1FFF);
+	unsigned char data = spc_readMemory(spc.EA & 0x1FFF);
 
-	if (data & (1 << (EA >> 13))) {
+	if (data & (1 << (spc.EA >> 13))) {
 		spc.PSW = spc.PSW ^ PSW_FLAG_CARRY;
-	} 
+	}
 }
 
 void mov1_c() {
-	unsigned char data = spc_readMemory(EA & 0x1FFF);
+	unsigned char data = spc_readMemory(spc.EA & 0x1FFF);
 
-	if (data & (1 << (EA >> 13))) {
+	if (data & (1 << (spc.EA >> 13))) {
 		spc.PSW = spc.PSW & ~PSW_FLAG_CARRY;
 	} else {
 		spc.PSW = spc.PSW | PSW_FLAG_CARRY;
-	} 
+	}
 }
 
 void mov1() {
-	unsigned char data = spc_readMemory(EA & 0x1FFF);
+	unsigned char data = spc_readMemory(spc.EA & 0x1FFF);
 
 	if (spc.PSW & PSW_FLAG_CARRY) {
-		data = data | (1 << (EA >> 13));
+		data = data | (1 << (spc.EA >> 13));
 	} else {
-		data = data & ~(1 << (EA >> 13));
+		data = data & ~(1 << (spc.EA >> 13));
 	}
 
-	spc_writeMemory(EA & 0x1FFF, data);
+	spc_writeMemory(spc.EA & 0x1FFF, data);
 }
 
 void not1() {
-	unsigned char data = spc_readMemory(EA & 0x1FFF);
-
-	if (data & (1 << (EA >> 13))) {
-		data = data & ~(1 << (EA >> 13));
-	} else {
-		data = data | (1 << (EA >> 13));
-	}
-
-	spc_writeMemory(EA & 0x1FFF, data);
+	unsigned char data = spc_readMemory(spc.EA & 0x1FFF);
+	spc_writeMemory(spc.EA & 0x1FFF, data ^ (1 << (spc.EA >> 13)));
 }
 
 void or1_not() {
-	unsigned char data = spc_readMemory(EA & 0x1FFF);
+	unsigned char data = spc_readMemory(spc.EA & 0x1FFF);
 
-	if (!(data & (1 << (EA >> 13)))) {
+	if (!(data & (1 << (spc.EA >> 13)))) {
 		SET_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	}
 }
 
 void or1() {
-	unsigned char data = spc_readMemory(EA & 0x1FFF);
+	unsigned char data = spc_readMemory(spc.EA & 0x1FFF);
 
-	if ((data & (1 << (EA >> 13))) {
+	if (data & (1 << (spc.EA >> 13))) {
 		SET_FLAG(spc.PSW, PSW_FLAG_CARRY);
 	}
 }
@@ -1234,7 +1294,7 @@ void daa() {
 		spc.A += 0x60;
 	}
 
-	if ((PSW & PSW_FLAG_HALFCARRY) || (spc.A > 0x9)) {
+	if ((spc.PSW & PSW_FLAG_HALFCARRY) || ((spc.A & 0x0F) > 0x9)) {
 		spc.A += 0x6;
 	}
 
@@ -1249,7 +1309,7 @@ void das() {
 		spc.A -= 0x60;
 	}
 
-	if ((PSW & PSW_FLAG_HALFCARRY) || (spc.A > 0x9)) {
+	if ((spc.PSW & PSW_FLAG_HALFCARRY) || ((spc.A & 0xF) > 0x9)) {
 		spc.A -= 0x6;
 	}
 
@@ -1258,18 +1318,38 @@ void das() {
 
 }
 
+void xcn() {
+	spc.A = (spc.A >> 4) | (spc.A << 4);
+	if (spc.A) CLEAR_FLAG(spc.PSW, PSW_FLAG_ZERO); else SET_FLAG(spc.PSW, PSW_FLAG_ZERO);
+	if (spc.A & PSW_FLAG_NEGATIVE) SET_FLAG(spc.PSW, PSW_FLAG_NEGATIVE); else CLEAR_FLAG(spc.PSW, PSW_FLAG_NEGATIVE);
+}
+
 
 /* SPC Init CPU */
 void spc_initCPU() {
+	/** clear SPC memory and load bootROM */
+	memset(spc_mem, 0x0, 0xFFFF);
+	memset(&spc, 0x0, sizeof(spc700));
+	/* set PC to startup */
+	spc.PC = 0xFFC0;
+	spc.A = 0;
+	spc.X = 0;
+	spc.Y = 0;
+	spc.PSW = 0x2;
+	spc.SP = 0xEF;
 
-
-	/* Init the Stack 0x0100 ~ 0x01FF*/
-	SP = 0xFF;
+	memset(&info, 0x0, sizeof(spc_info));
+	info.core = &spc;
 }
 
-/* SPC Main Loop */
-void spc_mainLoop() {
-	unsigned char opcode = spc_mem[spc.pc++];
+/** SPC execute cpu */
+void spc_run() {
+	unsigned char opcode = spc_mem[spc.PC++];
+
+#ifdef DEBUG
+	fprintf(stdout, "%04X: A: %02X X: %02X Y: %02X SP: 01%02X PSW: %02X OpCode: %02X EA: %04X\n",
+		spc.PC-1, spc.A, spc.X, spc.Y, spc.SP, spc.PSW, opcode, spc.EA);
+#endif
 
 	switch (opcode) {
 		/* cpu load/store commands */
@@ -1349,7 +1429,7 @@ void spc_mainLoop() {
 			spc.cycles += 5;
 		break;
 
-		case 0xF6 // MOV a, [aaaa+y]
+		case 0xF6: // MOV a, [aaaa+y]
 			absolute_indexedY();
 			mov_a();
 			spc.cycles += 5;
@@ -1428,7 +1508,7 @@ void spc_mainLoop() {
 			spc.cycles += 5;
 		break;
 
-		case 0xFA; // MOV aa, aa
+		case 0xFA: // MOV aa, aa
 			directPage();
 			mov_dp();
 			spc.cycles += 5;
@@ -1491,7 +1571,7 @@ void spc_mainLoop() {
 
 		case 0xAF: // MOV (X)+, A
 			indirect_autoIncrement();
-			spc_writeMemory(EA, spc.A);
+			spc_writeMemory(spc.EA, spc.A);
 			spc.cycles += 4;
 		break;
 
@@ -1504,24 +1584,24 @@ void spc_mainLoop() {
 		case 0xCA:
 			absolute();
 			mov1();
-			sps.cycles += 6;
+			spc.cycles += 6;
 		break;
 
 		case 0xC6: // MOV (X), A
 			indirect();
-			spc_writeMemory(EA, spc.A);
+			spc_writeMemory(spc.EA, spc.A);
 			spc.cycles += 4;
 		break;
 
 		case 0xD7: // MOV [aa]+Y, A
 			indirect_indexedY_indirect();
-			spc_writeMemory(EA, spc.A);
+			spc_writeMemory(spc.EA, spc.A);
 			spc.cycles += 7;
 		break;
 
 		case 0xC7: // MOV [aa+X], A
 			indirect_indexedX();
-			spc_writeMemory(EA, spc.A);
+			spc_writeMemory(spc.EA, spc.A);
 			spc.cycles += 7;
 		break;
 
@@ -1530,7 +1610,6 @@ void spc_mainLoop() {
 			mov_dp_ya();
 			spc.cycles += 5;
 		break;
-
 
 		case 0x2D: // PUSH (A)
 			push(spc.A);
@@ -1548,7 +1627,7 @@ void spc_mainLoop() {
 		break;
 
 		case 0x0D: // PUSH (PSW)
-			push(PSW);
+			push(spc.PSW);
 			spc.cycles += 4;
 		break;
 
@@ -1720,13 +1799,11 @@ void spc_mainLoop() {
 			spc.cycles += 2;
 		break;
 
-
 		case 0x66:
 			indirect();
 			cmp();
 			spc.cycles += 3;
 		break;
-
 
 		case 0x64:
 			directPage();
@@ -1734,13 +1811,11 @@ void spc_mainLoop() {
 			spc.cycles += 3;
 		break;
 
-
 		case 0x74:
 			directPage_indexedX();
 			cmp();
 			spc.cycles += 4;
 		break;
-
 
 		case 0x65:
 			absolute();
@@ -1748,13 +1823,11 @@ void spc_mainLoop() {
 			spc.cycles += 4;
 		break;
 
-
 		case 0x75:
 			absolute_indexedX();
 			cmp();
 			spc.cycles += 5;
 		break;
-
 
 		case 0x76:
 			absolute_indexedY();
@@ -1762,26 +1835,22 @@ void spc_mainLoop() {
 			spc.cycles += 5;
 		break;
 
-
 		case 0x67:
 			indirect_indexedX();
-			sbc();
+			cmp();
 			spc.cycles += 6;
 		break;
-
 
 		case 0x77:
 			indirect_indexedY_indirect();
-			sbc();
+			cmp();
 			spc.cycles += 6;
 		break;
-
 
 		case 0x79:
 			cmp_xy();
 			spc.cycles += 5;
 		break;
-
 
 		case 0x69:
 			directPage();
@@ -1789,13 +1858,11 @@ void spc_mainLoop() {
 			spc.cycles += 6;
 		break;
 
-
 		case 0x78:
 			immediate();
 			cmp_dp();
 			spc.cycles += 5;
 		break;
-
 
 		case 0xC8:
 			immediate();
@@ -1803,13 +1870,11 @@ void spc_mainLoop() {
 			spc.cycles += 2;
 		break;
 
-
 		case 0x3E:
 			directPage();
 			cpx();
 			spc.cycles += 3;
 		break;
-
 
 		case 0x1E:
 			absolute();
@@ -1817,13 +1882,11 @@ void spc_mainLoop() {
 			spc.cycles += 4;
 		break;
 
-
 		case 0xAD:
 			immediate();
 			cpy();
 			spc.cycles += 2;
 		break;
-
 
 		case 0x7E:
 			directPage();
@@ -1831,13 +1894,11 @@ void spc_mainLoop() {
 			spc.cycles += 3;
 		break;
 
-
 		case 0x5E:
 			absolute();
 			cpy();
 			spc.cycles += 4;
 		break;
-
 
 		case 0x28:
 			immediate();
@@ -1881,7 +1942,7 @@ void spc_mainLoop() {
 			spc.cycles += 5;
 		break;
 
-		case 0x27;
+		case 0x27:
 			indirect_indexedX();
 			and();
 			spc.cycles += 6;
@@ -2132,7 +2193,7 @@ void spc_mainLoop() {
 		break;
 
 		case 0xDC:
-			dec_reg(&reg.Y);
+			dec_reg(&spc.Y);
 			spc.cycles += 2;
 		break;
 
@@ -2154,7 +2215,7 @@ void spc_mainLoop() {
 			spc.cycles += 5;
 		break;
 
-		case 0xCC:
+		case 0x0C:
 			absolute();
 			asl_mem();
 			spc.cycles += 5;
@@ -2234,12 +2295,12 @@ void spc_mainLoop() {
 
 		/* XCN */
 		case 0x9F:
-			spc.A = (spc.A >> 4) | (spc.A << 4);
+			xcn();
 			spc.cycles += 5;
 		break;
 
 		/* 16 bit operation commands */
-		case 0x3A;
+		case 0x3A:
 			directPage();
 			incw();
 			spc.cycles += 6;
@@ -2519,7 +2580,7 @@ void spc_mainLoop() {
 
 		case 0x5F:
 			absolute();
-			jmp_3f();
+			jmp_5f();
 			spc.cycles += 3;
 		break;
 
@@ -2597,12 +2658,14 @@ void spc_mainLoop() {
 		break;
 
 		case 0x40:
-		  setPSW(PSW_FLAG_DIRECTPAGE);
+		    setPSW(PSW_FLAG_DIRECTPAGE);
 			spc.cycles += 2;
 		break;
 
 		case 0xFF:
 			printf("SLEEP\n");
+			exit(0);
+
 			spc.cycles += 1;
 		break;
 
@@ -2705,7 +2768,7 @@ void spc_mainLoop() {
 		break;
 
 		case 0x4F:
-			tcall(0xFF00 + spc_readMemory(PC++));
+			tcall(0xFF00 | spc_readMemory(spc.PC++));
 			spc.cycles += 6;
 		break;
 
@@ -2715,15 +2778,12 @@ void spc_mainLoop() {
 		break;
 
 		case 0xFE:
-			spc.Y--;
-			bne();
+			dbnz_y();
 			spc.cycles += 4;
 		break;
 
 		case 0x6E:
-			directPage();
-			spc_writeMemory(EA, spc_readMemory()--);
-			bne();
+			dbnz_d();
 			spc.cycles += 4;
 		break;
 
@@ -2758,5 +2818,24 @@ void spc_mainLoop() {
 		default:
 			printf("Opcode: 0x%X not implemented\n", opcode);
 		break;
+	}
+}
+
+void spc_updateTimers() {
+	for (int i = 0; i < 3; i++) {
+		spc.tmrList[i].cycles += spc.cycles;
+
+		if (spc.tmrList[i].cycles > (i > 1 ? 16 : 128)) {
+			if (spc.tmrList[i].enable) {
+					spc.tmrList[i].inCnt++;
+
+					if (spc.tmrList[i].inCnt >= spc.tmrList[i].tmr) {
+						spc.tmrList[i].cnt = (spc.tmrList[i].cnt + 1) & 0xF;
+						spc.tmrList[i].inCnt = 0;
+					}
+
+			}
+			spc.tmrList[i].cycles = spc.tmrList[i].cycles - (i > 1 ? 16 : 128);
+		}
 	}
 }

@@ -4,7 +4,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "dsp.h"
 
+#ifndef DEBUG
+	#define DEBUG
+#endif
+
+/** SPC700 BootROM image */
+static const unsigned char IPL_BOOTROM[] = {
+	0xCD,0xEF,0xBD,0xE8,0x00,0xC6,0x1D,0xD0,0xFC,0x8F,0xAA,0xF4,0x8F,0xBB,0xF5,0x78,
+	0xCC,0xF4,0xD0,0xFB,0x2F,0x19,0xEB,0xF4,0xD0,0xFC,0x7E,0xF4,0xD0,0x0B,0xE4,0xF5,
+	0xCB,0xF4,0xD7,0x00,0xFC,0xD0,0xF3,0xAB,0x01,0x10,0xEF,0x7E,0xF4,0x10,0xEB,0xBA,
+	0xF6,0xDA,0x00,0xBA,0xF4,0xC4,0xF4,0xDD,0x5D,0xD0,0xDB,0x1F,0x00,0x00,0xC0,0xFF
+};
 
 #define PSW_FLAG_NEGATIVE    0b10000000
 #define PSW_FLAG_OVERFLOW    0b01000000
@@ -19,13 +31,14 @@
 #define CLEAR_FLAG(f, n) (f = f & ~n)
 
 typedef struct timer {
-	unsigned char count;
+	unsigned char cnt;
+	unsigned char inCnt;
+	unsigned char tmr;
 	unsigned char enable;
+	unsigned int  cycles;
 } timer;
 
-typedef struct spc_700 {
-	/* CPU Registers */
-
+typedef struct spc700 {
 	unsigned char A;
 	unsigned char X;
 	unsigned char Y;
@@ -37,60 +50,52 @@ typedef struct spc_700 {
 	unsigned short EA;
 	unsigned int cycles;
 
-	timer timerList[3];
-} spc_700;
+	timer tmrList[3];
+	unsigned char port[4];
+	unsigned char control_reg;
 
-/* Addressing mode */
-extern void immediate();
-extern void directPage();
-extern void directPage_indexedX();
-extern void directPage_indexedY();
-extern void indirect();
-extern void indirect_autoIncrement();
-extern void directPage_directPage();
-extern void indirectPage_indirectPage();
-extern void immData_directPage();
-extern void directPage_bit();
-extern void directPage_bitRelative();
-extern void absolute_booleanBit();
-extern void absolute();
-extern void absolute_indexedX();
-extern void absolute_indexedY();
-extern void indirect_indexedX();
-extern void indirect_indexedY_indirect();
+} spc700;
 
+typedef struct spc_info {
+	spc700 *core;
+	char song_title[32];
+	char game_title[32];
+	char dumper_name[16];
+	char comment[32];
+	char dump_date[11];
+	char unused[7];
+	char sec_before_fout[4];
+	char num_fade_ms[5];
+	char sound_artist[32];
+	unsigned char default_channel_disable;
+	unsigned char emu_used_to_dump;
+	char reserved[45];
+} spc_info;
 
-/* instruction set */
-
-extern void mov_a();
-extern void mov_x();
-extern void mov_y();
-extern void mov_ax();
-extern void mov_xa();
-extern void mov_ay();
-extern void mov_ya();
-extern void mov_xsp();
-extern void mov_spx();
-extern void movw_ya();
-extern void mov_dp();
-extern void mov_dp_reg(unsigned char);
-extern void mov_dp_x(unsigned char);
-extern void mov_dp_y(unsigned char);
-extern void mov_abs(unsigned char);
-extern void mov_abs_x(unsigned char);
-extern void mov_abs_y(unsigned char);
-extern void mov_dp_ya();
+extern spc_info info;
+extern spc700 spc;
+extern unsigned char spc_mem[0xFFFFF];
+extern unsigned char dsp_addr;
+extern unsigned char dsp_data;
+extern unsigned char input_ports[4];
+extern unsigned char isBootROM;
 
 /* Init CPU */
 extern void spc_initCPU();
 /* CPU Main Loop */
-extern void spc_mainLoop();
+extern void spc_run();
 /* Write 8 bits to memory */
 extern void spc_writeMemory(unsigned short addr, unsigned char data);
+/* Write 16 bits to memory */
+extern void spc_writeMemory16(unsigned short addr, unsigned short data);
 /* Read 8 bits from memory */
 extern unsigned char spc_readMemory(unsigned short addr);
+/* Read 16 bits from memory */
+extern unsigned short spc_readMemory16(unsigned short addr);
 /* Stack Manipulation */
 extern void push(unsigned char data);
 extern unsigned char pop();
+/* update the timers */
+extern void spc_updateTimers();
 
 #endif
