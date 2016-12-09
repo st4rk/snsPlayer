@@ -222,7 +222,29 @@ void writeMemory(unsigned short addr, unsigned char data) {
 		}
 
 		if ((addr >= 0x4010) && (addr <= 0x4013)) {
-		//	printf("DMC\n");
+			switch (addr) {
+				case DMC_ILF:
+					dmc.irq = (data & 0x80);
+					dmc.loop = (data & 0x40);
+					dmc.freq = dmc_rate[(data & 0x0F)];
+					dmc_update_freq();
+				break;
+
+				case DMC_LOAD_CNT:
+					dmc.directLoad = (data & 0x7F);
+					dmc.shift = 8;
+				break;
+
+				case DMC_SAMPLE_ADDR:
+					dmc.addr = 0xC000 + (data * 64);
+					dmc.addrCnt = dmc.addr;
+				break;
+
+				case DMC_SAMPLE_LEN:
+					dmc.size = (data * 16) + 1;
+					dmc.sizeCnt = dmc.size;
+				break;
+			}
 		}
 
 		/* Enable or Disable Channel individual */

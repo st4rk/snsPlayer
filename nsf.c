@@ -367,8 +367,8 @@ initAgain:
 					   noise_lfsr();
 					}
 				}
-				short mix = mix_channel() / 2;
-				samples[samplesCnt] = mix;
+
+				samples[samplesCnt] = mix_channel();
 				samples[samplesCnt+1] = samples[samplesCnt];
 				samplesCnt += 2;
 			}

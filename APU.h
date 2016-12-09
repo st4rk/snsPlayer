@@ -10,6 +10,8 @@
 #include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL.h>
 
+#include "6502.h"
+
 /**
  * timer period lookup table to noise 
  * this is the NTSC version
@@ -29,6 +31,11 @@ static const unsigned char triangle_sequence[] = {
 	0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0,
 	0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
 	0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF
+};
+
+static const unsigned int dmc_rate[] = {
+	428, 380, 340, 320, 286, 254, 226, 214, 
+	190, 160, 142, 128, 106,  84,  72,  54
 };
 
 #define INTERNAL_VOLUME     100
@@ -57,6 +64,12 @@ static const unsigned char triangle_sequence[] = {
 #define NOISE_UNUSED        0x400D
 #define NOISE_L_PERIOD      0x400E
 #define NOISE_LEN_CNT       0x400F
+/* DMC wave */
+#define DMC_ILF             0x4010
+#define DMC_LOAD_CNT        0x4011
+#define DMC_SAMPLE_ADDR     0x4012
+#define DMC_SAMPLE_LEN      0x4013
+
 /* CPU Frequency */
 #define NTSC_CPU_CLOCK      1789773
 #define PAL_CPU_CLOK        1662607
@@ -152,6 +165,26 @@ typedef struct noise_wave {
 	envelope env; 
 } noise_wave;
 
+typedef struct apu_dmc {
+	unsigned char irq;
+	unsigned char loop;
+	unsigned char freq;
+
+	unsigned char directLoad;
+
+	unsigned short addr;
+	unsigned short addrCnt;
+	unsigned char size;
+	unsigned char sizeCnt;
+
+	unsigned char sample;
+	unsigned char shift;
+
+	unsigned char dacCnt;
+
+	unsigned int out_freq;
+} apu_dmc;
+
 typedef struct apu_status {
 	unsigned char dmc_flag;
 	unsigned char noise_flag;
@@ -170,6 +203,7 @@ typedef struct apu_status {
 extern square_wave   squareList[2];
 extern triangle_wave triangle;
 extern noise_wave    noise;
+extern apu_dmc       dmc;
 extern apu_status    apu;
 extern short         samples[MAX_SAMPLES];
 /* Square Wave */
@@ -193,6 +227,9 @@ extern void noise_out_freq();
 extern void noise_timer();
 extern void noise_lfsr();
 extern void noise_out_freq();
+
+extern void dmc_update_freq();
+extern short dmc_samples();
 
 /* SDL and APU Stuff */
 /* APU Lenght Counter table */

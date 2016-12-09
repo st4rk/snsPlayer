@@ -13,12 +13,15 @@ square_wave squareList[2];
 triangle_wave triangle;
 /* NES APU has one noise wave channel */
 noise_wave noise;
+/* NES APU DMC */
+apu_dmc dmc;
 /* NES APU flags */
 apu_status  apu;
 /* Sample count used by the square and triangle waves */
 unsigned int square_sample_cnt[] = {0, 0};
 unsigned int triangle_sample_cnt = 0;
 unsigned int noise_sample_cnt    = 0;
+unsigned int dmc_sample_cnt      = 0;
 short samples[MAX_SAMPLES];
 
 
@@ -483,10 +486,68 @@ short noise_samples() {
 			noise_sample_cnt -= noise.out_freq;
 		}
 
-		return (noise.env.volume * ((noise.lfsr & 1) * 5));
+		return (noise.env.volume * ((noise.lfsr & 1) * 4));
 	
 	}
 	return 0;
+}
+
+
+/**
+ * DMC Channel 
+ */
+
+void dmc_update_freq() {
+	dmc.out_freq = (unsigned int)(NTSC_CPU_CLOCK /  (16 * dmc.freq + 1)); 
+	dmc.out_freq = (44100/dmc.out_freq);
+}
+
+
+short dmc_samples() {
+	dmc_sample_cnt++;
+
+	if (dmc_sample_cnt > dmc.out_freq) {
+		dmc_sample_cnt -= dmc.out_freq;
+
+		if (dmc.sizeCnt && dmc.shift) {
+			unsigned short oldAddr = dmc.addrCnt;
+
+			if (dmc.addrCnt == 0xFFFF) {
+				dmc.addrCnt = 0x8000;
+			} else {
+				dmc.addrCnt++;
+			}
+
+			dmc.directLoad = memoryRead(oldAddr);
+			dmc.sizeCnt--;
+			dmc.shift = 8;
+
+			if (dmc.loop && (dmc.sizeCnt <= 0)) {
+				dmc.sizeCnt = dmc.size;
+				dmc.addrCnt = dmc.addr;
+			}
+		}
+
+
+		if (dmc.sizeCnt > 0) {
+			if (dmc.directLoad) {
+				if (!(dmc.directLoad & 0x1) && (dmc.dacCnt > 1)) {
+					dmc.dacCnt -= 2;
+				} else if ((dmc.directLoad & 0x1) && (dmc.dacCnt < 0x7E)) {
+					dmc.dacCnt += 2;
+				}
+			}
+
+			dmc.dacCnt--;
+
+			if (dmc.dacCnt == 0) dmc.dacCnt = 8;
+
+			dmc.directLoad >>= 1;
+			dmc.shift--;
+		}
+	}
+
+	return dmc.dacCnt;
 }
 
 short mix_channel() {
@@ -497,7 +558,8 @@ short mix_channel() {
 // 0.00851f * (float)triangle_samples(); //
 	float tnd_out =  0.00851f * (float)triangle_samples() + 0.00494f * (float)noise_samples();
 	sound_mix += tnd_out;
+	//float sound_mix = (float)dmc_samples();
 
-	return (short)(sound_mix * 10000);
+	return (short)(sound_mix * 50000);
 }
 
